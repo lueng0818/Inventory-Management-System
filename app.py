@@ -122,46 +122,33 @@ if menu == '類別管理':
 # 品項管理
 elif menu == '品項管理':
     st.title('⚙️ 品項管理')
+    # 取得類別映射
     cat_map = 取得對映('類別','類別編號','類別名稱')
     if not cat_map:
         st.warning('請先新增類別')
         st.stop()
     st.subheader('現有類別')
-    st.write(list(cat_map.values()))
+    st.write(list(cat_map.keys()))
     sel_cat = st.selectbox('選擇類別', list(cat_map.keys()))
     cat_id = cat_map[sel_cat]
     st.info(f"您選擇的類別：{sel_cat} (編號: {cat_id})")
-    # 取得品項映射: 名稱->編號
-    item_map_full = 取得對映('品項','品項編號','品項名稱')
-    # 過濾屬於該類別的品項
+    # 顯示現有品項
     df_items = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cat_id,))
     df_items.columns = df_items.columns.str.strip()
-    item_map = {row['品項名稱']: row['品項編號'] for _, row in df_items.iterrows()}
-    if not item_map:
-        st.warning('該類別尚無品項')
-        st.stop()
     st.subheader(f'「{sel_cat}」下現有品項')
-    st.write(list(item_map.keys()))
-    # 選擇品項名稱
-    sel_item = st.selectbox('選擇品項', list(item_map.keys()))
-    item_id = item_map[sel_item]
-    # 顯示現有細項
-    df = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(item_id,))
-    df.columns = df.columns.str.strip()
-    st.subheader(f'「{sel_item}」下現有細項')
-    st.table(df.rename(columns={'細項編號':'編號','細項名稱':'名稱'}))
-    # 新增/刪除細項
-    with st.form('form_sub'):
-        name = st.text_input('新增細項名稱')
-        del_id = st.text_input('刪除細項編號')
-        sb = st.form_submit_button('執行')
-        if sb:
-            if name:
-                新增('細項',['品項編號','細項名稱'],[item_id,name])
-                st.success(f'於「{sel_item}」新增細項：{name}')
-            if del_id.isdigit():
-                刪除('細項','細項編號',int(del_id))
-                st.success(f'刪除細項編號：{del_id}')
+    st.table(df_items.rename(columns={'品項編號':'編號','品項名稱':'名稱'})[['編號','名稱']])
+    # 新增／刪除品項
+    with st.form('form_item'):
+        new_item = st.text_input('新增品項名稱')
+        del_item_id = st.text_input('刪除品項編號')
+        submit_item = st.form_submit_button('執行')
+        if submit_item:
+            if new_item:
+                新增('品項',['類別編號','品項名稱'],[cat_id,new_item])
+                st.success(f'於「{sel_cat}」新增品項：{new_item}')
+            if del_item_id.isdigit():
+                刪除('品項','品項編號',int(del_item_id))
+                st.success(f'刪除品項編號：{del_item_id}')
             st.experimental_rerun()
 
 elif menu == '進貨':
