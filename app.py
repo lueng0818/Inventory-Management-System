@@ -63,8 +63,11 @@ def 新增(table, cols, vals):
     cols_str = ','.join([f'"{c}"' for c in cols])
     qmarks = ','.join(['?']*len(vals))
     sql = f'INSERT INTO "{table}" ({cols_str}) VALUES ({qmarks})'
-    c.execute(sql, vals)
-    conn.commit()
+    try:
+        c.execute(sql, vals)
+        conn.commit()
+    except sqlite3.IntegrityError:
+        st.warning(f"操作失敗：可能已重複建立或外鍵限制");
 
 def 刪除(table, key_col, key_val):
     c.execute(f'DELETE FROM "{table}" WHERE "{key_col}"=?', (key_val,))
