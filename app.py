@@ -1,38 +1,68 @@
-# 輕珠寶設計師專屬庫存管理系統
-#
-# 專案結構：
-# inventory_system/
-# ├── app.py
-# ├── requirements.txt
-# └── database.db (自動建立)
+# --- UI 選單定義 ---
+st.sidebar.title('庫存管理系統')
+menu = st.sidebar.radio('功能選單', [
+    '類別管理',
+    '品項管理',
+    '細項管理',
+    '進貨',
+    '銷售',
+    '儀表板'
+])
 
-import streamlit as st
-import sqlite3
-import pandas as pd
-from datetime import datetime
+# --- 各功能分支 --- 
+if menu == '類別管理':
+    # 類別管理的程式碼...
+    pass
 
-# --- 資料庫初始化 ---
-conn = sqlite3.connect('database.db', check_same_thread=False)
-c = conn.cursor()
-# 類別表
-c.execute('''CREATE TABLE IF NOT EXISTS 類別 (
-    類別編號 INTEGER PRIMARY KEY AUTOINCREMENT,
-    類別名稱 TEXT UNIQUE
-)''')
-# 品項表
-c.execute('''CREATE TABLE IF NOT EXISTS 品項 (
-    品項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
-    類別編號 INTEGER,
-    品項名稱 TEXT,
-    FOREIGN KEY(類別編號) REFERENCES 類別(類別編號)
-)''')
-# 細項表
-c.execute('''CREATE TABLE IF NOT EXISTS 細項 (
-    細項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
-    品項編號 INTEGER,
-    細項名稱 TEXT,
-    FOREIGN KEY(品項編號) REFERENCES 品項(品項編號)
-)''')
+elif menu == '品項管理':
+    # 品項管理的程式碼...
+    pass
+
+elif menu == '細項管理':
+    # 細項管理的程式碼...
+    pass
+
+elif menu == '進貨':
+    st.title('➕ 批次匯入 / 手動記錄進貨')
+    tab1, tab2 = st.tabs(['批次匯入', '手動記錄'])
+    with tab1:
+        # 下載 CSV 範例
+        sample_df = pd.DataFrame({
+            '類別': ['首飾', '配件'],
+            '品項': ['項鍊', '戒指'],
+            '細項': ['金屬鍊', '銀戒'],
+            '買入數量': [10, 5],
+            '買入單價': [100.0, 200.0]
+        })
+        csv_example = sample_df.to_csv(index=False, encoding='utf-8-sig')
+        st.download_button(
+            '下載進貨範例檔 (CSV)',
+            csv_example,
+            file_name='purchase_template.csv',
+            mime='text/csv'
+        )
+
+        uploaded = st.file_uploader('上傳進貨 Excel/CSV', type=['xlsx','xls','csv'])
+        if uploaded:
+            try:
+                df = pd.read_excel(uploaded)
+            except:
+                df = pd.read_csv(uploaded)
+            count = 批次匯入進貨(df)
+            st.success(f'批次匯入 {count} 筆進貨記錄')
+
+    with tab2:
+        # 手動記錄進貨的程式碼...
+        pass
+
+elif menu == '銷售':
+    # 銷售的程式碼...
+    pass
+
+elif menu == '儀表板':
+    # 儀表板的程式碼...
+    pass
+
 # 進貨
 # --- 進貨分支 ---
 elif menu == '進貨':
