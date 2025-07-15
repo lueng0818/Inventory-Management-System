@@ -186,9 +186,15 @@ elif 頁面 == "新增銷售":
 
 elif 頁面 == "檢視紀錄":
     st.title("📚 檢視所有紀錄")
-    df_進貨 = pd.read_sql('SELECT * FROM 進貨 ORDER BY 日期 DESC', conn)
-    df_銷售 = pd.read_sql('SELECT * FROM 銷售 ORDER BY 日期 DESC', conn)
-    df_類別 = pd.read_sql('SELECT 編號, 名稱 FROM 類別', conn)
+    df_進貨 = pd.read_sql(
+        'SELECT * FROM 進貨 ORDER BY 日期 DESC', conn
+    )
+    df_銷售 = pd.read_sql(
+        'SELECT * FROM 銷售 ORDER BY 日期 DESC', conn
+    )
+    df_類別 = pd.read_sql(
+        'SELECT 編號, 名稱 FROM 類別', conn
+    )
     dfp = df_進貨.merge(
         df_類別,
         left_on='類別編號',
@@ -205,16 +211,18 @@ elif 頁面 == "檢視紀錄":
     st.subheader('進貨紀錄')
     st.dataframe(
         dfp[['編號', '日期', '名稱', '品項', '細項', '數量', '單價']]
-        .rename(columns={'名稱':'類別'})
+        .rename(columns={'名稱': '類別'})
     )
     # 顯示銷售紀錄
     st.subheader('銷售紀錄')
     st.dataframe(
         dfs[['編號', '日期', '名稱', '品項', '細項', '數量', '單價']]
-        .rename(columns={'名稱':'類別'})
+        .rename(columns={'名稱': '類別'})
     )
 
 # requirements.txt:
+# streamlit
+# pandas
 # streamlit
 # pandas:
 # streamlit
