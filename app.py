@@ -193,21 +193,21 @@ elif 頁面 == "檢視紀錄":
         df_類別,
         left_on='類別編號',
         right_on='編號',
-        how='left',
-        suffixes=('', '_cat')
+        how='left'
     )
     dfs = df_銷售.merge(
         df_類別,
         left_on='類別編號',
         right_on='編號',
-        how='left',
-        suffixes=('', '_cat')
+        how='left'
     )
+    # 顯示進貨紀錄
     st.subheader('進貨紀錄')
     st.dataframe(
         dfp[['編號', '日期', '名稱', '品項', '細項', '數量', '單價']]
         .rename(columns={'名稱':'類別'})
     )
+    # 顯示銷售紀錄
     st.subheader('銷售紀錄')
     st.dataframe(
         dfs[['編號', '日期', '名稱', '品項', '細項', '數量', '單價']]
@@ -215,6 +215,8 @@ elif 頁面 == "檢視紀錄":
     )
 
 # requirements.txt:
+# streamlit
+# pandas:
 # streamlit
 # pandas
     st.title("📚 檢視所有紀錄")
