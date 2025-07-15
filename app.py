@@ -60,13 +60,19 @@ def 查詢(table):
     return pd.read_sql(f'SELECT * FROM {table}', conn)
 
 def 新增(table, cols, vals):
-    cols_str = ','.join(cols)
+    # 動態偵測資料表欄位，跳過第一欄主鍵
+    df = 查詢(table)
+    cols_all = df.columns.tolist()
+    # 排除主鍵 (第一欄)
+    target_cols = cols_all[1:1+len(vals)]
+    cols_str = ','.join(target_cols)
     qmarks = ','.join(['?'] * len(vals))
     sql = f'INSERT INTO {table} ({cols_str}) VALUES ({qmarks})'
     try:
         c.execute(sql, vals)
         conn.commit()
     except sqlite3.IntegrityError:
+        st.warning("操作失敗：可能已重複建立或外鍵限制"):
         st.warning("操作失敗：可能已重複建立或外鍵限制")
 
 def 刪除(table, key_col, key_val):
