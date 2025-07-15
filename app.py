@@ -148,23 +148,36 @@ elif menu == '品項管理':
 # 細項管理
 elif menu == '細項管理':
     st.title('⚙️ 細項管理')
-    item_map = {}
-    # 選類再選品項
+    # 取得類別映射: 名稱->編號
     cat_map = 取得對映('類別','類別編號','類別名稱')
     if not cat_map:
         st.warning('請先新增類別')
         st.stop()
-    sel_cat = st.selectbox('類別', list(cat_map.values()))
-    cat_id = {v:k for k,v in cat_map.items()}[sel_cat]
-    item_map = 取得對映('品項','品項編號','品項名稱')
-    item_map = {n:i for n,i in item_map.items() if i in pd.read_sql('SELECT 品項編號 FROM 品項 WHERE 類別編號=?',conn,params=(cat_id,))['品項編號'].tolist()}
+    st.subheader('現有類別')
+    st.write(list(cat_map.keys()))
+    # 選擇類別名稱
+    sel_cat = st.selectbox('選擇類別', list(cat_map.keys()))
+    cat_id = cat_map[sel_cat]
+    # 取得品項映射: 名稱->編號
+    item_map_full = 取得對映('品項','品項編號','品項名稱')
+    # 過濾屬於該類別的品項
+    df_items = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cat_id,))
+    df_items.columns = df_items.columns.str.strip()
+    item_map = {row['品項名稱']: row['品項編號'] for _, row in df_items.iterrows()}
     if not item_map:
         st.warning('該類別尚無品項')
         st.stop()
+    st.subheader(f'「{sel_cat}」下現有品項')
+    st.write(list(item_map.keys()))
+    # 選擇品項名稱
     sel_item = st.selectbox('選擇品項', list(item_map.keys()))
     item_id = item_map[sel_item]
+    # 顯示現有細項
     df = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(item_id,))
+    df.columns = df.columns.str.strip()
+    st.subheader(f'「{sel_item}」下現有細項')
     st.table(df.rename(columns={'細項編號':'編號','細項名稱':'名稱'}))
+    # 新增/刪除細項
     with st.form('form_sub'):
         name = st.text_input('新增細項名稱')
         del_id = st.text_input('刪除細項編號')
@@ -178,7 +191,6 @@ elif menu == '細項管理':
                 st.success(f'刪除細項編號：{del_id}')
             st.experimental_rerun()
 
-# 進貨 / 銷售與儀表板保留先前邏輯...
 elif menu == '進貨':
     st.info('請使用全功能版本以進行進貨記錄')
 elif menu == '銷售':
