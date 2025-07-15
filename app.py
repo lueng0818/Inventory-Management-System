@@ -60,27 +60,16 @@ def 查詢(table):
     return pd.read_sql(f'SELECT * FROM {table}', conn)
 
 def 新增(table, cols, vals):
-    cols_str = ','.join([f'"{c}"' for c in cols])
-    qmarks = ','.join(['?']*len(vals))
-    sql = f'INSERT INTO "{table}" ({cols_str}) VALUES ({qmarks})'
+    # 使用不帶引號的表名與欄位
+    cols_str = ','.join(cols)
+    qmarks = ','.join(['?'] * len(vals))
+    sql = f'INSERT INTO {table} ({cols_str}) VALUES ({qmarks})'
     try:
         c.execute(sql, vals)
         conn.commit()
     except sqlite3.IntegrityError:
-        st.warning(f"操作失敗：可能已重複建立或外鍵限制");
-
-def 刪除(table, key_col, key_val):
-    c.execute(f'DELETE FROM "{table}" WHERE "{key_col}"=?', (key_val,))
-    conn.commit()
-
-def 取得對映(table, key, val):
-    df = 查詢(table)
-    df.columns = df.columns.str.strip()
-    # 動態尋找欄位，匹配包含關鍵字
-    key_col = next((col for col in df.columns if key in col), None)
-    val_col = next((col for col in df.columns if val in col), None)
-    if key_col and val_col:
-        return dict(zip(df[val_col], df[key_col]))
+        st.warning(f"操作失敗：可能已重複建立或外鍵限制")
+ dict(zip(df[val_col], df[key_col]))
     else:
         st.warning(f"在 {table} 表中找不到含 '{key}' 或 '{val}' 的欄位 (現有: {df.columns.tolist()})")
         return {}
