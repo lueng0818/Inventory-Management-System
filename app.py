@@ -75,7 +75,15 @@ def 刪除(table, key_col, key_val):
 
 def 取得對映(table, key, val):
     df = 查詢(table)
-    return dict(zip(df[val], df[key]))
+    df.columns = df.columns.str.strip()
+    # 動態尋找欄位
+    key_col = next((col for col in df.columns if key in col), None)
+    val_col = next((col for col in df.columns if val in col), None)
+    if key_col and val_col:
+        return dict(zip(df[val_col], df[key_col]))
+    else:
+        st.warning(f"在 {table} 表中找不到含 '{key}' 或 '{val}' 的欄位 (現有: {df.columns.tolist()})")
+        return {}}
 
 # --- UI ---
 st.sidebar.title('庫存管理系統')
