@@ -4,7 +4,6 @@
 # inventory_system/
 # ├── app.py
 # ├── requirements.txt
-# ├── integrated_inventory.csv (可選匯入檔)
 # └── database.db (自動建立)
 
 import streamlit as st
@@ -19,251 +18,161 @@ c = conn.cursor()
 # 類別表
 c.execute('''
 CREATE TABLE IF NOT EXISTS 類別 (
-    編號 INTEGER PRIMARY KEY,
-    名稱 TEXT UNIQUE
+    類別編號 INTEGER PRIMARY KEY AUTOINCREMENT,
+    類別名稱 TEXT UNIQUE
 )''')
-# 進貨與銷售表 (新增細項欄位)
-for tbl in ['進貨', '銷售']:
+# 品項表
+c.execute('''
+CREATE TABLE IF NOT EXISTS 品項 (
+    品項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
+    類別編號 INTEGER,
+    品項名稱 TEXT,
+    FOREIGN KEY(類別編號) REFERENCES 類別(類別編號)
+)''')
+# 細項表
+c.execute('''
+CREATE TABLE IF NOT EXISTS 細項 (
+    細項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
+    品項編號 INTEGER,
+    細項名稱 TEXT,
+    FOREIGN KEY(品項編號) REFERENCES 品項(品項編號)
+)''')
+# 進貨、銷售表
+for tbl in ['進貨','銷售']:
     c.execute(f'''
     CREATE TABLE IF NOT EXISTS {tbl} (
-        編號 INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         類別編號 INTEGER,
-        品項 TEXT,
-        細項 TEXT,
+        品項編號 INTEGER,
+        細項編號 INTEGER,
         數量 INTEGER,
         單價 REAL,
         總價 REAL,
         日期 TEXT,
-        FOREIGN KEY(類別編號) REFERENCES 類別(編號)
-    )
-    ''')
+        FOREIGN KEY(類別編號) REFERENCES 類別(類別編號),
+        FOREIGN KEY(品項編號) REFERENCES 品項(品項編號),
+        FOREIGN KEY(細項編號) REFERENCES 細項(細項編號)
+    )''')
 # 補貨提醒表
 c.execute('''
 CREATE TABLE IF NOT EXISTS 補貨提醒 (
-    類別編號 INTEGER,
-    品項 TEXT,
-    細項 TEXT,
+    細項編號 INTEGER PRIMARY KEY,
     提醒 INTEGER,
-    PRIMARY KEY(類別編號, 品項, 細項)
+    FOREIGN KEY(細項編號) REFERENCES 細項(細項編號)
 )''')
 conn.commit()
 
 # --- 輔助函式 ---
-def 取得類別():
-    rows = c.execute('SELECT 編號, 名稱 FROM 類別').fetchall()
-    return {name: id for id, name in rows}
+def 查询表(table):
+    return pd.read_sql(f'SELECT * FROM {table}', conn)
 
 def 新增類別(name):
     try:
-        c.execute('INSERT INTO 類別 (名稱) VALUES (?)', (name,))
+        c.execute('INSERT INTO 類別 (類別名稱) VALUES (?)',(name,))
         conn.commit()
     except sqlite3.IntegrityError:
         pass
 
-def 新增進貨(cat_id, item, subitem, qty, price, date=None):
-    total = qty * price
-    date = date or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    c.execute(
-        'INSERT INTO 進貨 (類別編號, 品項, 細項, 數量, 單價, 總價, 日期) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        (cat_id, item, subitem, qty, price, total, date)
-    )
+def 新增品項(cat_id, name):
+    c.execute('INSERT INTO 品項 (類別編號, 品項名稱) VALUES (?,?)',(cat_id,name))
     conn.commit()
 
-def 新增銷售(cat_id, item, subitem, qty, price, date=None):
-    total = qty * price
-    date = date or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    c.execute(
-        'INSERT INTO 銷售 (類別編號, 品項, 細項, 數量, 單價, 總價, 日期) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        (cat_id, item, subitem, qty, price, total, date)
-    )
+def 新增細項(item_id, name):
+    c.execute('INSERT INTO 細項 (品項編號, 細項名稱) VALUES (?,?)',(item_id,name))
     conn.commit()
 
-def 設定提醒(cat_id, item, subitem, flag):
-    c.execute(
-        'REPLACE INTO 補貨提醒 (類別編號, 品項, 細項, 提醒) VALUES (?, ?, ?, ?)',
-        (cat_id, item, subitem, 1 if flag else 0)
-    )
+def get_categories():
+    return {row['類別名稱']:row['類別編號'] for row in 查询表('類別').to_dict('records')}
+
+def get_items(cat_id):
+    df = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cat_id,))
+    return {row['品項名稱']:row['品項編號'] for row in df.to_dict('records')}
+
+def get_subitems(item_id):
+    df = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(item_id,))
+    return {row['細項名稱']:row['細項編號'] for row in df.to_dict('records')}
+
+def 新增進貨(cat_id,item_id,sub_id,qty,price):
+    total = qty*price
+    date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    c.execute('INSERT INTO 進貨 (類別編號,品項編號,細項編號,數量,單價,總價,日期) VALUES (?,?,?,?,?,?,?)',
+              (cat_id,item_id,sub_id,qty,price,total,date))
     conn.commit()
 
-# --- 自動匯入整合 CSV ---
-IMPORT_PATH = 'integrated_inventory.csv'
-if os.path.exists(IMPORT_PATH):
-    df_imp = pd.read_csv(IMPORT_PATH)
-    for idx, row in df_imp.iterrows():
-        cat = row.get('類別') or row.get('Category')
-        item = row.get('品項') or row.get('Item')
-        subitem = row.get('細項') or ''
-        if pd.isna(cat) or pd.isna(item):
-            continue
-        新增類別(cat)
-        cats = 取得類別()
-        cid = cats.get(cat)
-        start_qty = int(row.get('起始數量', 0)) if pd.notna(row.get('起始數量')) else 0
-        price_raw = row.get('起始單價') or row.get('單價') or 0
-        try:
-            price = float(str(price_raw).replace('NT$', '').replace(',', ''))
-        except:
-            price = 0.0
-        if start_qty > 0:
-            新增進貨(cid, item, subitem, start_qty, price, row.get('日期'))
-        dec = int(row.get('減少', 0)) if pd.notna(row.get('減少')) else 0
-        if dec > 0:
-            新增銷售(cid, item, subitem, dec, price, row.get('日期'))
-        remind = bool(row.get('需補貨提醒', False))
-        設定提醒(cid, item, subitem, remind)
+def 新增銷售(cat_id,item_id,sub_id,qty,price):
+    total = qty*price
+    date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    c.execute('INSERT INTO 銷售 (類別編號,品項編號,細項編號,數量,單價,總價,日期) VALUES (?,?,?,?,?,?,?)',
+              (cat_id,item_id,sub_id,qty,price,total,date))
+    conn.commit()
 
-# --- Streamlit 應用 ---
+def 設定提醒(sub_id,flag):
+    c.execute('REPLACE INTO 補貨提醒 (細項編號,提醒) VALUES (?,?)',(sub_id,1 if flag else 0))
+    conn.commit()
+
+# --- Streamlit UI ---
 st.sidebar.title('庫存管理系統')
-選單 = st.sidebar.radio('功能選單', ['重置資料', '儀表板', '類別管理', '新增進貨', '新增銷售', '檢視紀錄', '匯入/匯出'])
+menu = st.sidebar.radio('功能選單', ['類別管理','品項管理','細項管理','進貨','銷售','儀表板'])
 
-if 選單 == '重置資料':
-    st.title('🗑️ 重置資料庫')
-    if st.button('確認清空所有資料'):
-        conn.close()
-        import os
-        if os.path.exists('database.db'):
-            os.remove('database.db')
-        st.success('已刪除資料庫，請重新啟動應用以重建資料表')
-        st.stop()
-
-elif 選單 == '匯入/匯出':
-    st.title('📥 匯入 / 匯出')
-    up = st.file_uploader('上傳 integrated_inventory.csv', type='csv')
-    if up:
-        with open(IMPORT_PATH, 'wb') as f:
-            f.write(up.getbuffer())
-        st.success('檔案已儲存，請重新啟動匯入')
-    if st.button('匯出當前庫存'):
-        df_p = pd.read_sql('SELECT * FROM 進貨', conn)
-        df_s = pd.read_sql('SELECT * FROM 銷售', conn)
-        df_r = pd.read_sql('SELECT * FROM 補貨提醒', conn)
-        df = df_p.merge(df_s, on=['類別編號', '品項', '細項'], how='outer', suffixes=('_進貨', '_銷售'))
-        df = df.merge(df_r, on=['類別編號', '品項', '細項'], how='left')
-        df.to_csv('exported_inventory.csv', index=False)
-        st.download_button('下載 exported_inventory.csv', 'exported_inventory.csv', 'text/csv')
-
-elif 選單 == '儀表板':
-    st.title('📊 庫存儀表板')
-            # 讀取原始數據
-    df_p = pd.read_sql('SELECT * FROM 進貨', conn)
-    df_s = pd.read_sql('SELECT * FROM 銷售', conn)
-    # 清理欄位名稱
-    df_p.columns = df_p.columns.str.strip()
-    df_s.columns = df_s.columns.str.strip()
-    # 動態偵測欄位名稱
-    cols_p = df_p.columns.tolist()
-    col_cat = next((c for c in cols_p if '類別' in c), None)
-    col_item = next((c for c in cols_p if '品項' in c), None)
-    col_sub = next((c for c in cols_p if '細項' in c), None)
-    col_qty = next((c for c in cols_p if '數量' in c and '進貨數量' not in c), None)
-    col_total = next((c for c in cols_p if '總價' in c or '支出' in c), None)
-    # 分組計算
-    grp_p = df_p.groupby([col_cat, col_item, col_sub], as_index=False).agg(
-        進貨數量=(col_qty, 'sum'), 支出=(col_total, 'sum')
-    )
-    cols_s = df_s.columns.tolist()
-    col_qty_s = next((c for c in cols_s if '數量' in c and '銷售' not in c), None)
-    col_total_s = next((c for c in cols_s if '總價' in c or '收入' in c), None)
-    grp_s = df_s.groupby([col_cat, col_item, col_sub], as_index=False).agg(
-        銷售數量=(col_qty_s, 'sum'), 收入=(col_total_s, 'sum')
-    )
-    # 合併結果
-    summary = pd.merge(grp_p, grp_s, on=[col_cat, col_item, col_sub], how='outer').fillna(0)
-    summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
-    # 加回類別名稱
-    cats_map = 取得類別()
-    inv = summary.copy()
-    inv['類別'] = inv[col_cat].map(lambda x: {v:k for k,v in cats_map.items()}.get(x, ''))
-    # 顯示
-    st.dataframe(inv[['類別', col_item, col_sub, '進貨數量', '銷售數量', '庫存']])
-    # 財務概覽
-    total_exp = summary['支出'].sum()
-    total_rev = summary['收入'].sum()
-    st.subheader('💰 財務概況')
-    st.metric('總支出', f"{total_exp:.2f}")
-    st.metric('總收入', f"{total_rev:.2f}")
-    st.metric('淨利潤', f"{total_rev - total_exp:.2f}")
-    # 補貨提醒
-    df_r = pd.read_sql('SELECT * FROM 補貨提醒 WHERE 提醒=1', conn)
-    if not df_r.empty:
-        st.subheader('⚠️ 需補貨清單')
-        for _, r in df_r.iterrows():
-            cname = {v:k for k,v in cats_map.items()}.get(r[col_cat], '')
-            st.warning(f"{cname} / {r[col_item]} / {r[col_sub]} 需補貨")(grp_p, grp_s, on=['類別編號', '品項', '細項'], how='outer').fillna(0)
-    summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
-    # 加回類別名稱
-    cats_map = 取得類別()
-    inv = summary.copy()
-    inv['類別'] = inv['類別編號'].map(lambda x: {v:k for k,v in cats_map.items()}.get(x, ''))
-    st.dataframe(inv[['類別', '品項', '細項', '進貨數量', '銷售數量', '庫存']])
-    # 財務概覽
-    total_exp = summary['支出'].sum()
-    total_rev = summary['收入'].sum()
-    st.subheader('💰 財務概況')
-    st.metric('總支出', f"{total_exp:.2f}")
-    st.metric('總收入', f"{total_rev:.2f}")
-    st.metric('淨利潤', f"{total_rev - total_exp:.2f}")
-    # 補貨提醒
-    df_r = pd.read_sql('SELECT * FROM 補貨提醒 WHERE 提醒=1', conn)
-    if not df_r.empty:
-        st.subheader('⚠️ 需補貨清單')
-        for _, r in df_r.iterrows():
-            cname = {v:k for k,v in cats_map.items()}.get(r['類別編號'], '')
-            st.warning(f"{cname} / {r['品項']} / {r['細項']} 需補貨")
-
-elif 選單 == '類別管理':
+if menu=='類別管理':
     st.title('⚙️ 類別管理')
-    with st.form('f_cat'):
-        n = st.text_input('新增類別名稱')
-        if st.form_submit_button('新增') and n:
-            新增類別(n)
-            st.success(f"已新增：{n}")
-    st.table(pd.DataFrame(取得類別().items(), columns=['類別', '編號']))
+    df = 查询表('類別')
+    st.table(df)
+    name=st.text_input('新增類別')
+    if st.button('新增類別') and name:
+        新增類別(name); st.experimental_rerun()
 
-elif 選單 == '新增進貨':
+elif menu=='品項管理':
+    st.title('⚙️ 品項管理')
+    cats = get_categories()
+    cat=st.selectbox('選擇類別', list(cats.keys()))
+    df = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cats[cat],))
+    st.table(df)
+    name=st.text_input('新增品項')
+    if st.button('新增品項') and name:
+        新增品項(cats[cat],name); st.experimental_rerun()
+
+elif menu=='細項管理':
+    st.title('⚙️ 細項管理')
+    cats=get_categories(); cat=st.selectbox('類別',list(cats.keys()))
+    items=get_items(cats[cat]); item=st.selectbox('品項',list(items.keys()))
+    df = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(items[item],))
+    st.table(df)
+    name=st.text_input('新增細項')
+    if st.button('新增細項') and name:
+        新增細項(items[item],name); st.experimental_rerun()
+
+elif menu=='進貨':
     st.title('➕ 新增進貨')
-    cats = 取得類別()
-    with st.form('f_p'):
-        cat_sel = st.selectbox('類別', list(cats.keys()))
-        item = st.text_input('品項名稱')
-        sub = st.text_input('細項說明')
-        q = st.number_input('數量', min_value=1, value=1)
-        p = st.number_input('單價', min_value=0.0, format='%.2f')
-        if st.form_submit_button('儲存'):
-            新增進貨(cats[cat_sel], item, sub, q, p)
-            st.success('已記錄進貨')
+    cats=get_categories(); cat=st.selectbox('類別',list(cats.keys()))
+    items=get_items(cats[cat]); item=st.selectbox('品項',list(items.keys()))
+    subs=get_subitems(items[item]); sub=st.selectbox('細項',list(subs.keys()))
+    qty=st.number_input('數量',1); price=st.number_input('單價',0.0,format='%.2f')
+    if st.button('記錄進貨'):
+        新增進貨(cats[cat],items[item],subs[sub],qty,price); st.success('完成')
 
-elif 選單 == '新增銷售':
+elif menu=='銷售':
     st.title('➕ 新增銷售')
-    cats = 取得類別()
-    with st.form('f_s'):
-        cat_sel = st.selectbox('類別', list(cats.keys()))
-        item = st.text_input('品項名稱')
-        sub = st.text_input('細項說明')
-        q = st.number_input('數量', min_value=1, value=1)
-        p = st.number_input('單價', min_value=0.0, format='%.2f')
-        if st.form_submit_button('儲存'):
-            新增銷售(cats[cat_sel], item, sub, q, p)
-            st.success('已記錄銷售')
+    cats=get_categories(); cat=st.selectbox('類別',list(cats.keys()))
+    items=get_items(cats[cat]); item=st.selectbox('品項',list(items.keys()))
+    subs=get_subitems(items[item]); sub=st.selectbox('細項',list(subs.keys()))
+    qty=st.number_input('數量',1); price=st.number_input('單價',0.0,format='%.2f')
+    if st.button('記錄銷售'):
+        新增銷售(cats[cat],items[item],subs[sub],qty,price); st.success('完成')
 
-elif 選單 == '檢視紀錄':
-    st.title('📚 檢視所有紀錄')
-    df_p = pd.read_sql('SELECT * FROM 進貨 ORDER BY 日期 DESC', conn)
-    df_s = pd.read_sql('SELECT * FROM 銷售 ORDER BY 日期 DESC', conn)
-    df_c = pd.read_sql('SELECT 編號, 名稱 FROM 類別', conn)
-    df_p = df_p.merge(df_c, left_on='類別編號', right_on='編號', how='left')
-    df_s = df_s.merge(df_c, left_on='類別編號', right_on='編號', how='left')
-    st.subheader('進貨紀錄')
-    st.dataframe(
-        df_p[['編號_x', '日期', '名稱', '品項', '細項', '數量', '單價']]
-        .rename(columns={'編號_x': '編號', '名稱': '類別'})
-    )
-    st.subheader('銷售紀錄')
-    st.dataframe(
-        df_s[['編號_x', '日期', '名稱', '品項', '細項', '數量', '單價']]
-        .rename(columns={'編號_x': '編號', '名稱': '類別'})
-    )
-
-# requirements.txt
-# streamlit
-# pandas
+else:
+    st.title('📊 庫存儀表板')
+    df_p=pd.read_sql('SELECT * FROM 進貨',conn)
+    df_s=pd.read_sql('SELECT * FROM 銷售',conn)
+    df_c=pd.read_sql('SELECT * FROM 類別',conn)
+    df_i=pd.read_sql('SELECT * FROM 品項',conn)
+    df_su=pd.read_sql('SELECT * FROM 細項',conn)
+    df_p=df_p.merge(df_c,on='類別編號').merge(df_i,on='品項編號').merge(df_su,on='細項編號')
+    df_s=df_s.merge(df_c,on='類別編號').merge(df_i,on='品項編號').merge(df_su,on='細項編號')
+    grp_p=df_p.groupby(['類別名稱','品項名稱','細項名稱'],as_index=False).agg(進貨=('數量','sum'))
+    grp_s=df_s.groupby(['類別名稱','品項名稱','細項名稱'],as_index=False).agg(銷售=('數量','sum'))
+    summary=grp_p.merge(grp_s,on=['類別名稱','品項名稱','細項名稱'],how='outer').fillna(0)
+    summary['庫存']=summary['進貨']-summary['銷售']
+    st.dataframe(summary)
+    total_exp=df_p['總價'].sum(); total_rev=df_s['總價'].sum()
+    st.subheader('💰 財務概況'); st.metric('總支出',f"{total_exp:.2f}"); st.metric('總收入',f"{total_rev:.2f}"); st.metric('淨利',f"{total_rev-total_exp:.2f}")
