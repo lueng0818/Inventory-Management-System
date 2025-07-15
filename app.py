@@ -149,6 +149,14 @@ elif menu == '品項管理':
             if del_item_id.isdigit():
                 刪除('品項','品項編號',int(del_item_id))
                 st.success(f'刪除品項編號：{del_item_id}')
+            # 自動重新啟動或提示
+            if hasattr(st, 'experimental_rerun'):
+                st.experimental_rerun()
+            else:
+                st.info('請重新整理頁面以更新列表')(f'於「{sel_cat}」新增品項：{new_item}')
+            if del_item_id.isdigit():
+                刪除('品項','品項編號',int(del_item_id))
+                st.success(f'刪除品項編號：{del_item_id}')
             # 請重新整理頁面以更新列表
 
 elif menu == '進貨':
