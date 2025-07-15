@@ -130,10 +130,14 @@ if 頁面 == '匯入/匯出':
 
 elif 頁面 == "儀表板":
     st.title("📊 庫存儀表板")
-    df_p = pd.read_sql('SELECT 類別編號,品項,細項,SUM(數量) as 進貨數量,SUM(總價) as 支出 FROM 進貨 GROUP BY 類別編號,品項,細項',conn)
-    df_s = pd.read_sql('SELECT 類別編號,品項,細項,SUM(數量) as 銷售數量,SUM(總價) as 收入 FROM 銷售 GROUP BY 類別編號,品項,細項',conn)
+    df_p = pd.read_sql(
+        'SELECT "類別編號","品項","細項",SUM("數量") AS "進貨數量",SUM("總價") AS "支出" '
+        'FROM "進貨" GROUP BY "類別編號","品項","細項"', conn)
+    df_s = pd.read_sql(
+        'SELECT "類別編號","品項","細項",SUM("數量") AS "銷售數量",SUM("總價") AS "收入" '
+        'FROM "銷售" GROUP BY "類別編號","品項","細項"', conn)
     cats = {v:k for k,v in 取得類別().items()}
-    summary = df_p.merge(df_s,on=['類別編號','品項','細項'],how='outer').fillna(0)
+    summary = df_p.merge(df_s, on=["類別編號","品項","細項"], how='outer').fillna(0)
     summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
     summary['類別'] = summary['類別編號'].map(cats)
     st.dataframe(summary[['類別','品項','細項','進貨數量','銷售數量','庫存']])
@@ -143,7 +147,8 @@ elif 頁面 == "儀表板":
     st.metric('總支出',f"{total_exp:.2f}")
     st.metric('總收入',f"{total_rev:.2f}")
     st.metric('淨利潤',f"{total_rev-total_exp:.2f}")
-    rems = pd.read_sql('SELECT 類別編號,品項,細項 FROM 補貨提醒 WHERE 提醒=1',conn)
+    rems = pd.read_sql(
+        'SELECT "類別編號","品項","細項" FROM "補貨提醒" WHERE "提醒"=1', conn)
     if not rems.empty:
         st.subheader('⚠️ 需補貨清單')
         cats_map = {v:k for k,v in 取得類別().items()}
@@ -151,6 +156,7 @@ elif 頁面 == "儀表板":
             st.warning(f"{cats_map.get(r['類別編號'],'')} / {r['品項']} / {r['細項']} 需補貨")
 
 elif 頁面 == "類別管理":
+
     st.title("⚙️ 類別管理")
     with st.form("form_cat"):
         名稱 = st.text_input('新增類別名稱')
