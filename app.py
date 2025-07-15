@@ -198,9 +198,68 @@ elif menu == '細項管理':
 
 # 進貨
 elif menu == '進貨':
-    st.info('請使用全功能版本以進行進貨記錄')
-
-# 銷售
+    st.title('➕ 批次或手動新增進貨')
+    tab1, tab2 = st.tabs(['批次匯入','手動記錄'])
+    with tab1:
+        uploaded = st.file_uploader('上傳買賣進出表 Excel/CSV (批次進貨)', type=['xlsx','xls','csv'])
+        if uploaded:
+            try:
+                df = pd.read_excel(uploaded)
+            except Exception:
+                try:
+                    df = pd.read_csv(uploaded)
+                except Exception:
+                    st.warning('無法讀取檔案，請確認為 Excel 或 CSV')
+                    st.stop()
+            df = df.rename(columns=lambda x: x.strip())
+            df['買入數量'] = df.get('買入 數量', df.get('買入數量', 0)).fillna(0)
+            df['買入單價'] = df.get('買入 單價', df.get('買入單價', 0)).fillna(0)
+            count = 0
+            for _, row in df.iterrows():
+                if row['買入數量'] > 0:
+                    cat, item, sub = row.get('類別'), row.get('品項'), row.get('細項')
+                    if pd.isna(cat) or pd.isna(item) or pd.isna(sub): continue
+                    新增('類別',['類別名稱'],[cat])
+                    cat_map = 取得對映('類別','類別編號','類別名稱')
+                    cid = cat_map.get(cat)
+                    新增('品項',['類別編號','品項名稱'],[cid,item])
+                    df_i = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=? AND 品項名稱=?', conn, params=(cid,item))
+                    iid = df_i['品項編號'].iloc[0]
+                    新增('細項',['品項編號','細項名稱'],[iid,sub])
+                    df_su = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=? AND 細項名稱=?', conn, params=(iid,sub))
+                    sid = df_su['細項編號'].iloc[0]
+                    新增('進貨',['類別編號','品項編號','細項編號','數量','單價'],[cid,iid,sid,int(row['買入數量']),float(row['買入單價'])])
+                    count += 1
+            st.success(f'批次匯入進貨完成，共 {count} 筆')
+    with tab2:
+        # 手動記錄
+        cat_map = 取得對映('類別','類別編號','類別名稱')
+        if not cat_map:
+            st.warning('請先在類別管理新增類別')
+            st.stop()
+        cat_name = st.selectbox('類別', list(cat_map.keys()))
+        cid = cat_map[cat_name]
+        df_items = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
+        df_items.columns = df_items.columns.str.strip()
+        item_map = {row['品項名稱']:row['品項編號'] for _,row in df_items.iterrows()}
+        if not item_map:
+            st.warning('請先在品項管理新增品項')
+            st.stop()
+        item_name = st.selectbox('品項', list(item_map.keys()))
+        iid = item_map[item_name]
+        df_sub = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
+        df_sub.columns = df_sub.columns.str.strip()
+        sub_map = {row['細項名稱']:row['細項編號'] for _,row in df_sub.iterrows()}
+        if not sub_map:
+            st.warning('請先在細項管理新增細項')
+            st.stop()
+        sub_name = st.selectbox('細項', list(sub_map.keys()))
+        sid = sub_map[sub_name]
+        qty = st.number_input('數量', min_value=1, value=1)
+        price = st.number_input('單價', min_value=0.0, format='%.2f')
+        if st.button('儲存進貨'):
+            新增('進貨',['類別編號','品項編號','細項編號','數量','單價'],[cid,iid,sid,qty,price])
+            st.success('已記錄進貨')
 elif menu == '銷售':
     st.info('請使用全功能版本以進行銷售記錄')
 
