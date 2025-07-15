@@ -175,16 +175,48 @@ elif 頁面 == "新增銷售":
     st.title("➕ 新增銷售")
     cats = 取得類別()
     with st.form('form_s'):
-        類別選 = st.selectbox('類別',list(cats.keys()))
+        類別選 = st.selectbox('類別', list(cats.keys()))
         品項 = st.text_input('品項名稱')
         細項 = st.text_input('細項說明')
-        數量 = st.number_input('數量',min_value=1,value=1)
-        單價 = st.number_input('單價',min_value=0.0,format='%.2f')
+        數量 = st.number_input('數量', min_value=1, value=1)
+        單價 = st.number_input('單價', min_value=0.0, format='%.2f')
         if st.form_submit_button('儲存'):
-            新增銷售(cats[類別選],品項,細項,數量,單價)
+            新增銷售(cats[類別選], 品項, 細項, 數量, 單價)
             st.success('已記錄銷售')
 
-else:  # 檢視紀錄
+elif 頁面 == "檢視紀錄":
+    st.title("📚 檢視所有紀錄")
+    df_進貨 = pd.read_sql('SELECT * FROM 進貨 ORDER BY 日期 DESC', conn)
+    df_銷售 = pd.read_sql('SELECT * FROM 銷售 ORDER BY 日期 DESC', conn)
+    df_類別 = pd.read_sql('SELECT 編號, 名稱 FROM 類別', conn)
+    dfp = df_進貨.merge(
+        df_類別,
+        left_on='類別編號',
+        right_on='編號',
+        how='left',
+        suffixes=('', '_cat')
+    )
+    dfs = df_銷售.merge(
+        df_類別,
+        left_on='類別編號',
+        right_on='編號',
+        how='left',
+        suffixes=('', '_cat')
+    )
+    st.subheader('進貨紀錄')
+    st.dataframe(
+        dfp[['編號', '日期', '名稱', '品項', '細項', '數量', '單價']]
+        .rename(columns={'名稱':'類別'})
+    )
+    st.subheader('銷售紀錄')
+    st.dataframe(
+        dfs[['編號', '日期', '名稱', '品項', '細項', '數量', '單價']]
+        .rename(columns={'名稱':'類別'})
+    )
+
+# requirements.txt:
+# streamlit
+# pandas
     st.title("📚 檢視所有紀錄")
     # 分別讀取進貨與銷售，再於 Pandas 中合併分類名稱
         df_進貨 = pd.read_sql('SELECT * FROM 進貨 ORDER BY 日期 DESC', conn)
