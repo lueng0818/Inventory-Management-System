@@ -1,13 +1,11 @@
-# --- UI 選單定義 ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+from datetime import datetime
+
+# 接著才是資料庫初始化、輔助函式、以及 UI 分支
 st.sidebar.title('庫存管理系統')
-menu = st.sidebar.radio('功能選單', [
-    '類別管理',
-    '品項管理',
-    '細項管理',
-    '進貨',
-    '銷售',
-    '儀表板'
-])
+menu = st.sidebar.radio('功能選單', ['類別管理','品項管理','細項管理','進貨','銷售','儀表板'])
 
 # --- 各功能分支 --- 
 if menu == '類別管理':
