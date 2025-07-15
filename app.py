@@ -206,7 +206,7 @@ elif menu=='銷售':
         新增銷售(cat_id, item_id, sub_id, qty, price)
         st.success('完成')
 
-else:
+elif menu=='儀表板':
     st.title('➕ 新增銷售')
     cats=get_categories(); cat=st.selectbox('類別',list(cats.keys()))
     items=get_items(cats[cat]); item=st.selectbox('品項',list(items.keys()))
