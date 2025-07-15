@@ -1,11 +1,11 @@
-# Inventory Management System for Light Jewelry Designers
+# 輕珠寶設計師專屬庫存管理系統
 #
-# Repository Structure:
+# 專案結構：
 # inventory_system/
 # ├── app.py
 # ├── requirements.txt
-# ├── integrated_inventory.csv (optional import file)
-# └── database.db (auto-generated)
+# ├── integrated_inventory.csv (可選匯入檔)
+# └── database.db (自動建立)
 
 import streamlit as st
 import sqlite3
@@ -13,169 +13,169 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# --- Database Setup ---
+# --- 資料庫設定 ---
 conn = sqlite3.connect('database.db', check_same_thread=False)
 c = conn.cursor()
-# Categories
-c.execute('''CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY,
-    name TEXT UNIQUE
+# 類別表
+c.execute('''CREATE TABLE IF NOT EXISTS 類別 (
+    編號 INTEGER PRIMARY KEY,
+    名稱 TEXT UNIQUE
 )''')
-# Purchases and Sales
-for tbl in ['purchases','sales']:
+# 進貨及銷售表
+for tbl in ['進貨','銷售']:
     c.execute(f'''
         CREATE TABLE IF NOT EXISTS {tbl} (
-            id INTEGER PRIMARY KEY,
-            item_name TEXT,
-            category_id INTEGER,
-            quantity INTEGER,
-            unit_price REAL,
-            total_price REAL,
-            date TEXT,
-            FOREIGN KEY(category_id) REFERENCES categories(id)
+            編號 INTEGER PRIMARY KEY,
+            品項 TEXT,
+            類別編號 INTEGER,
+            數量 INTEGER,
+            單價 REAL,
+            總價 REAL,
+            日期 TEXT,
+            FOREIGN KEY(類別編號) REFERENCES 類別(編號)
         )''')
-# Reminder Settings
-c.execute('''CREATE TABLE IF NOT EXISTS reminders (
-    item_name TEXT PRIMARY KEY,
-    remind INTEGER
+# 補貨提醒表
+c.execute('''CREATE TABLE IF NOT EXISTS 補貨提醒 (
+    品項 TEXT PRIMARY KEY,
+    提醒 INTEGER
 )''')
 conn.commit()
 
-# --- Helper Functions ---
-def get_categories():
-    rows = c.execute('SELECT id,name FROM categories').fetchall()
+# --- 輔助函式 ---
+def 取得類別():
+    rows = c.execute('SELECT 編號,名稱 FROM 類別').fetchall()
     return {name: id for id, name in rows}
 
-def add_category(name):
+def 新增類別(name):
     try:
-        c.execute('INSERT INTO categories (name) VALUES (?)',(name,))
+        c.execute('INSERT INTO 類別 (名稱) VALUES (?)',(name,))
         conn.commit()
     except sqlite3.IntegrityError:
-        pass  # already exists
+        pass
 
-
-def add_purchase(item,cat_id,qty,price,date=None):
-    total = qty*price
+def 新增進貨(item,cat_id,qty,price,date=None):
+    total = qty * price
     date = date or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    c.execute('INSERT INTO purchases (item_name,category_id,quantity,unit_price,total_price,date) VALUES (?,?,?,?,?,?)',
+    c.execute('INSERT INTO 進貨 (品項,類別編號,數量,單價,總價,日期) VALUES (?,?,?,?,?,?)',
               (item,cat_id,qty,price,total,date))
     conn.commit()
 
-def add_sale(item,cat_id,qty,price,date=None):
-    total = qty*price
+def 新增銷售(item,cat_id,qty,price,date=None):
+    total = qty * price
     date = date or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    c.execute('INSERT INTO sales (item_name,category_id,quantity,unit_price,total_price,date) VALUES (?,?,?,?,?,?)',
+    c.execute('INSERT INTO 銷售 (品項,類別編號,數量,單價,總價,日期) VALUES (?,?,?,?,?,?)',
               (item,cat_id,qty,price,total,date))
     conn.commit()
 
-def set_reminder(item,flag):
-    c.execute('REPLACE INTO reminders (item_name,remind) VALUES (?,?)',(item,1 if flag else 0))
+def 設定提醒(item,flag):
+    c.execute('REPLACE INTO 補貨提醒 (品項,提醒) VALUES (?,?)',(item,1 if flag else 0))
     conn.commit()
 
-# --- Auto-Import Integrated CSV ---
+# --- 自動匯入整合 CSV ---
 IMPORT_PATH = 'integrated_inventory.csv'
 if os.path.exists(IMPORT_PATH):
     df_imp = pd.read_csv(IMPORT_PATH)
-    cats = get_categories()
     for _, row in df_imp.iterrows():
         cat = row['Category']
-        add_category(cat)
-        cats = get_categories()
+        新增類別(cat)
+        cats = 取得類別()
         cid = cats[cat]
-        # 初始庫存
+        # 初始進貨
         start_qty = int(row.get('起始數量',0)) if pd.notna(row.get('起始數量')) else 0
         unit_price = float(str(row.get('起始單價','0')).replace('NT$','').replace(',',''))
         if start_qty>0:
-            add_purchase(row['品項'],cid,start_qty,unit_price,row.get('日期'))
+            新增進貨(row['品項'],cid,start_qty,unit_price,row.get('日期'))
         # 減少視為銷售
         dec = int(row.get('減少',0)) if pd.notna(row.get('減少')) else 0
         if dec>0:
-            add_sale(row['品項'],cid,dec,unit_price,row.get('日期'))
-        # 設定提醒
+            新增銷售(row['品項'],cid,dec,unit_price,row.get('日期'))
+        # 設定補貨提醒
         remind_flag = bool(row.get('需補貨提醒'))
-        set_reminder(row['品項'],remind_flag)
+        設定提醒(row['品項'],remind_flag)
 
-# --- Streamlit App ---
-st.sidebar.title("Inventory Management")
-page = st.sidebar.radio("Navigate", ["Dashboard","Manage Categories","Add Purchase","Add Sale","View Records","Import/Export"])
+# --- Streamlit 應用 ---
+st.sidebar.title("庫存管理系統")
+頁面 = st.sidebar.radio("功能選單", ["儀表板","類別管理","新增進貨","新增銷售","檢視紀錄","匯入/匯出"])
 
-if page == 'Import/Export':
-    st.title('📥 Import / Export')
+if 頁面 == '匯入/匯出':
+    st.title('📥 匯入 / 匯出')
     if os.path.exists(IMPORT_PATH):
-        st.success(f"Found import file: {IMPORT_PATH}")
-    uploaded = st.file_uploader('Upload integrated_inventory.csv',type='csv')
-    if uploaded:
-        with open(IMPORT_PATH,'wb') as f: f.write(uploaded.getbuffer())
-        st.success('File saved. Restart app to import.')
-    # Export current summary
-    if st.button('Export Current Inventory to CSV'):
-        df_p = pd.read_sql('SELECT item_name,category_id,quantity,unit_price,total_price,date FROM purchases',conn)
-        df_s = pd.read_sql('SELECT item_name,category_id,quantity,unit_price,total_price,date FROM sales',conn)
-        df_r = pd.read_sql('SELECT * FROM reminders',conn)
-        df = df_p.merge(df_s, on='item_name', how='outer', suffixes=('_in','_out')).merge(df_r,on='item_name',how='left')
+        st.success(f"找到匯入檔：{IMPORT_PATH}")
+    上傳 = st.file_uploader('上傳 integrated_inventory.csv',type='csv')
+    if 上傳:
+        with open(IMPORT_PATH,'wb') as f: f.write(上傳.getbuffer())
+        st.success('檔案已儲存，請重新啟動匯入')
+    if st.button('匯出當前庫存為 CSV'):
+        df_p = pd.read_sql('SELECT 品項,類別編號,數量,單價,總價,日期 FROM 進貨',conn)
+        df_s = pd.read_sql('SELECT 品項,類別編號,數量,單價,總價,日期 FROM 銷售',conn)
+        df_r = pd.read_sql('SELECT * FROM 補貨提醒',conn)
+        df = df_p.merge(df_s, on='品項', how='outer', suffixes=('_進貨','_銷售')).merge(df_r,on='品項',how='left')
         df.to_csv('exported_inventory.csv',index=False)
-        st.download_button('Download exported_inventory.csv','exported_inventory.csv','text/csv')
+        st.download_button('下載 exported_inventory.csv','exported_inventory.csv','text/csv')
 
-elif page == "Dashboard":
-    st.title("📊 Inventory Dashboard")
-    # Summary
-    purchases = pd.read_sql('SELECT item_name,category_id,SUM(quantity) qty,SUM(total_price) expense FROM purchases GROUP BY item_name,category_id',conn)
-    sales = pd.read_sql('SELECT item_name,category_id,SUM(quantity) qty,SUM(total_price) revenue FROM sales GROUP BY item_name,category_id',conn)
-    cats = {v:k for k,v in get_categories().items()}
-    summary = purchases.merge(sales,on=['item_name','category_id'],how='outer').fillna(0)
-    summary['In Stock'] = summary['qty_x']-summary['qty_y']
-    summary['Category'] = summary['category_id'].map(cats)
-    st.dataframe(summary.rename(columns={'item_name':'Item','qty_x':'Purchased','qty_y':'Sold','expense':'Expense','revenue':'Revenue'})[['Item','Category','Purchased','Sold','In Stock']])
-    # Financial
-    total_exp = summary['expense'].sum()
-    total_rev = summary['revenue'].sum()
-    st.subheader('💰 Financial Overview')
-    st.metric('Total Expense',f"{total_exp:.2f}")
-    st.metric('Total Revenue',f"{total_rev:.2f}")
-    st.metric('Net Profit',f"{total_rev-total_exp:.2f}")
-    # Reminders
-    rems = pd.read_sql('SELECT item_name FROM reminders WHERE remind=1',conn)
+elif 頁面 == "儀表板":
+    st.title("📊 庫存儀表板")
+    df_p = pd.read_sql('SELECT 品項,類別編號,SUM(數量) as 進貨數量,SUM(總價) as 支出 FROM 進貨 GROUP BY 品項,類別編號',conn)
+    df_s = pd.read_sql('SELECT 品項,類別編號,SUM(數量) as 銷售數量,SUM(總價) as 收入 FROM 銷售 GROUP BY 品項,類別編號',conn)
+    cats = {v:k for k,v in 取得類別().items()}
+    summary = df_p.merge(df_s,on=['品項','類別編號'],how='outer').fillna(0)
+    summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
+    summary['類別'] = summary['類別編號'].map(cats)
+    st.dataframe(summary[['品項','類別','進貨數量','銷售數量','庫存']])
+    # 財務概況
+    total_exp = summary['支出'].sum()
+    total_rev = summary['收入'].sum()
+    st.subheader('💰 財務概況')
+    st.metric('總支出',f"{total_exp:.2f}")
+    st.metric('總收入',f"{total_rev:.2f}")
+    st.metric('淨利潤',f"{total_rev-total_exp:.2f}")
+    # 補貨提醒
+    rems = pd.read_sql('SELECT 品項 FROM 補貨提醒 WHERE 提醒=1',conn)
     if not rems.empty:
-        st.subheader('⚠️ Items Needing Reorder')
-        for item in rems['item_name']:
-            st.warning(f"{item} 需補貨提醒")
+        st.subheader('⚠️ 需補貨清單')
+        for itm in rems['品項']:
+            st.warning(f"{itm} 需補貨")
 
-elif page == "Manage Categories":
-    st.title("⚙️ Manage Categories")
-    with st.form("cat_form"):
-        name = st.text_input('New Category Name')
-        if st.form_submit_button('Add Category') and name:
-            add_category(name)
-            st.success(f"Added: {name}")
-    st.table(pd.DataFrame(get_categories().items(),columns=['Category','ID']))
+elif 頁面 == "類別管理":
+    st.title("⚙️ 類別管理")
+    with st.form("form_cat"):
+        名稱 = st.text_input('新增類別名稱')
+        if st.form_submit_button('新增') and 名稱:
+            新增類別(名稱)
+            st.success(f"已新增：{名稱}")
+    st.table(pd.DataFrame(取得類別().items(),columns=['類別','編號']))
 
-elif page == "Add Purchase":
-    st.title("➕ Add Purchase")
-    cats = get_categories()
-    with st.form('p_form'):
-        item = st.text_input('Item Name')
-        cat = st.selectbox('Category',list(cats.keys()))
-        qty = st.number_input('Quantity',min_value=1,value=1)
-        price = st.number_input('Unit Price',min_value=0.0,format='%.2f')
-        if st.form_submit_button('Save'):
-            add_purchase(item,cats[cat],qty,price)
-            st.success('Purchase recorded')
+elif 頁面 == "新增進貨":
+    st.title("➕ 新增進貨")
+    cats = 取得類別()
+    with st.form('form_p'):
+        品項 = st.text_input('品項名稱')
+        類別選 = st.selectbox('類別',list(cats.keys()))
+        數量 = st.number_input('數量',min_value=1,value=1)
+        單價 = st.number_input('單價',min_value=0.0,format='%.2f')
+        if st.form_submit_button('儲存'):
+            新增進貨(品項,cats[類別選],數量,單價)
+            st.success('已記錄進貨')
 
-elif page == "Add Sale":
-    st.title("➕ Add Sale")
-    cats = get_categories()
-    with st.form('s_form'):
-        item = st.text_input('Item Name')
-        cat = st.selectbox('Category',list(cats.keys()))
-        qty = st.number_input('Quantity',min_value=1,value=1)
-        price = st.number_input('Unit Price',min_value=0.0,format='%.2f')
-        if st.form_submit_button('Save'):
-            add_sale(item,cats[cat],qty,price)
-            st.success('Sale recorded')
+elif 頁面 == "新增銷售":
+    st.title("➕ 新增銷售")
+    cats = 取得類別()
+    with st.form('form_s'):
+        品項 = st.text_input('品項名稱')
+        類別選 = st.selectbox('類別',list(cats.keys()))
+        數量 = st.number_input('數量',min_value=1,value=1)
+        單價 = st.number_input('單價',min_value=0.0,format='%.2f')
+        if st.form_submit_button('儲存'):
+            新增銷售(品項,cats[類別選],數量,單價)
+            st.success('已記錄銷售')
 
-else:  # View Records
-    st.title("📚 All Records")
-    dfp = pd.read_sql('SELECT p.id, p.date, p.item_name as Item, c.name as Category, p.quantity as Qty, p.unit_price as Price FROM purchases p JOIN categories c ON p.category_id=c.id ORDER BY date DESC',conn)
-    dfs = pd.read_sql('SELECT s.id, s.date, s.item_name as Item, c.name as Category, s.quantity as Qty, s.unit_price as Price FROM sales s JOIN categories c ON s.category_id=c.id ORDER BY date DESC',conn)
-    st.subheader('Purchases'); st.dataframe(dfp)
-    st.subheader('Sales');    st.dataframe(dfs)
+else:  # 檢視紀錄
+    st.title("📚 檢視所有紀錄")
+    dfp = pd.read_sql('SELECT 編號,日期,品項 as 品項,類別.名稱 as 類別,數量 as 數量,單價 as 單價 FROM 進貨 p JOIN 類別 ON p.類別編號=類別.編號 ORDER BY 日期 DESC',conn)
+    dfs = pd.read_sql('SELECT 編號,日期,品項 as 品項,類別.名稱 as 類別,數量 as 數量,單價 as 單價 FROM 銷售 s JOIN 類別 ON s.類別編號=類別.編號 ORDER BY 日期 DESC',conn)
+    st.subheader('進貨紀錄'); st.dataframe(dfp)
+    st.subheader('銷售紀錄'); st.dataframe(dfs)
+
+# requirements.txt:
+# streamlit
+# pandas
