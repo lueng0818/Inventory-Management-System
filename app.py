@@ -75,23 +75,37 @@ def 設定提醒(item,flag):
 IMPORT_PATH = 'integrated_inventory.csv'
 if os.path.exists(IMPORT_PATH):
     df_imp = pd.read_csv(IMPORT_PATH)
-    for _, row in df_imp.iterrows():
-        cat = row['Category']
-        新增類別(cat)
-        cats = 取得類別()
-        cid = cats[cat]
-        # 初始進貨
-        start_qty = int(row.get('起始數量',0)) if pd.notna(row.get('起始數量')) else 0
-        unit_price = float(str(row.get('起始單價','0')).replace('NT$','').replace(',',''))
-        if start_qty>0:
-            新增進貨(row['品項'],cid,start_qty,unit_price,row.get('日期'))
-        # 減少視為銷售
-        dec = int(row.get('減少',0)) if pd.notna(row.get('減少')) else 0
-        if dec>0:
-            新增銷售(row['品項'],cid,dec,unit_price,row.get('日期'))
-        # 設定補貨提醒
-        remind_flag = bool(row.get('需補貨提醒'))
-        設定提醒(row['品項'],remind_flag)
+    # 檢查欄位可能名稱
+    cat_col = 'Category' if 'Category' in df_imp.columns else ('類別' if '類別' in df_imp.columns else None)
+    if cat_col is None:
+        st.warning('匯入檔缺少 Category/類別 欄位，跳過自動匯入')
+    else:
+        for _, row in df_imp.iterrows():
+            cat_name = row.get(cat_col)
+            if pd.isna(cat_name):
+                continue
+            新增類別(cat_name)
+            cats = 取得類別()
+            cid = cats.get(cat_name)
+            # 初始進貨
+            start_qty = int(row.get('起始數量',0)) if pd.notna(row.get('起始數量')) else 0
+            unit_price_raw = row.get('起始單價', row.get('單價', '0'))
+            unit_price = 0.0
+            try:
+                unit_price = float(str(unit_price_raw).replace('NT$','').replace(',',''))
+            except:
+                unit_price = 0.0
+            if start_qty > 0 and cid is not None:
+                新增進貨(row.get('品項', ''), cid, start_qty, unit_price, row.get('日期'))
+            # 減少視為銷售
+            dec = int(row.get('減少',0)) if pd.notna(row.get('減少')) else 0
+            if dec>0 and cid is not None:
+                新增銷售(row.get('品項',''), cid, dec, unit_price, row.get('日期'))
+            # 設定補貨提醒
+            remind_flag = False
+            if '需補貨提醒' in df_imp.columns:
+                remind_flag = bool(row.get('需補貨提醒'))
+            設定提醒(row.get('品項',''), remind_flag)
 
 # --- Streamlit 應用 ---
 st.sidebar.title("庫存管理系統")
