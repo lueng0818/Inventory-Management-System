@@ -121,23 +121,16 @@ if 頁面 == '匯入/匯出':
         with open(IMPORT_PATH,'wb') as f: f.write(上傳.getbuffer())
         st.success('檔案已儲存，請重新啟動匯入')
     if st.button('匯出當前庫存'):    
-        df_p = pd.read_sql('SELECT 類別編號,品項,細項,數量,單價,總價,日期 FROM 進貨',conn)
-        df_s = pd.read_sql('SELECT 類別編號,品項,細項,數量,單價,總價,日期 FROM 銷售',conn)
-        df_r = pd.read_sql('SELECT 類別編號,品項,細項,提醒 FROM 補貨提醒',conn)
-        df = df_p.merge(df_s,on=['類別編號','品項','細項'],how='outer',suffixes=('_進貨','_銷售')).merge(df_r,on=['類別編號','品項','細項'],how='left')
-        df.to_csv('exported_inventory.csv',index=False)
-        st.download_button('下載 exported_inventory.csv','exported_inventory.csv','text/csv')
-
-elif 頁面 == "儀表板":
-    st.title("📊 庫存儀表板")
-    df_p = pd.read_sql(
-        'SELECT "類別編號","品項","細項",SUM("數量") AS "進貨數量",SUM("總價") AS "支出" '
-        'FROM "進貨" GROUP BY "類別編號","品項","細項"', conn)
+        df_p = pd.read_sql(
+        'SELECT 類別編號,品項,細項,SUM(數量) AS 進貨數量,SUM(總價) AS 支出 '
+        'FROM 進貨 GROUP BY 類別編號,品項,細項', conn)
     df_s = pd.read_sql(
-        'SELECT "類別編號","品項","細項",SUM("數量") AS "銷售數量",SUM("總價") AS "收入" '
-        'FROM "銷售" GROUP BY "類別編號","品項","細項"', conn)
-    cats = {v:k for k,v in 取得類別().items()}
-    summary = df_p.merge(df_s, on=["類別編號","品項","細項"], how='outer').fillna(0)
+        'SELECT 類別編號,品項,細項,SUM(數量) AS 銷售數量,SUM(總價) AS 收入 '
+        'FROM 銷售 GROUP BY 類別編號,品項,細項', conn)
+    # 確保欄位一致
+    df_p.columns = ['類別編號','品項','細項','進貨數量','支出']
+    df_s.columns = ['類別編號','品項','細項','銷售數量','收入']
+    summary = df_p.merge(df_s, on=['類別編號','品項','細項'], how='outer').fillna(0)(df_s, on=["類別編號","品項","細項"], how='outer').fillna(0)
     summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
     summary['類別'] = summary['類別編號'].map(cats)
     st.dataframe(summary[['類別','品項','細項','進貨數量','銷售數量','庫存']])
