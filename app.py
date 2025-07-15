@@ -38,6 +38,17 @@ elif menu == '進貨':
     st.title('➕ 批次匯入 / 手動記錄進貨')
     tab1, tab2 = st.tabs(['批次匯入','手動記錄'])
     with tab1:
+        # 下載範例檔
+        sample_df = pd.DataFrame({
+            '類別': ['首飾', '配件'],
+            '品項': ['項鍊', '戒指'],
+            '細項': ['金屬鍊', '銀戒'],
+            '買入數量': [10, 5],
+            '買入單價': [100.0, 200.0]
+        })
+        csv_example = sample_df.to_csv(index=False, encoding='utf-8-sig')
+        st.download_button('下載進貨範例檔 (CSV)', csv_example, file_name='purchase_template.csv', mime='text/csv')
+
         uploaded = st.file_uploader('上傳 Excel/CSV', type=['xlsx','xls','csv'])
         if uploaded:
             try:
@@ -105,6 +116,17 @@ elif menu == '銷售':
 
     tab_s1, tab_s2 = st.tabs(['批次匯入','手動記錄'])
     with tab_s1:
+        # 下載範例檔
+        sample_sales = pd.DataFrame({
+            '類別': ['首飾', '配件'],
+            '品項': ['手鍊', '耳環'],
+            '細項': ['皮革鍊', '珍珠耳環'],
+            '賣出數量': [2, 3],
+            '賣出單價': [150.0, 80.0]
+        })
+        csv_sales_example = sample_sales.to_csv(index=False, encoding='utf-8-sig')
+        st.download_button('下載銷售範例檔 (CSV)', csv_sales_example, file_name='sales_template.csv', mime='text/csv')
+
         up_s = st.file_uploader('上傳銷售 Excel/CSV', type=['xlsx','xls','csv'])
         if up_s:
             try:
