@@ -19,7 +19,8 @@ c.execute('''
 CREATE TABLE IF NOT EXISTS 類別 (
     類別編號 INTEGER PRIMARY KEY AUTOINCREMENT,
     類別名稱 TEXT UNIQUE
-)''')
+)
+''')
 # 品項表
 c.execute('''
 CREATE TABLE IF NOT EXISTS 品項 (
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS 品項 (
     類別編號 INTEGER,
     品項名稱 TEXT,
     FOREIGN KEY(類別編號) REFERENCES 類別(類別編號)
-)''')
+)
+''')
 # 細項表
 c.execute('''
 CREATE TABLE IF NOT EXISTS 細項 (
@@ -35,7 +37,8 @@ CREATE TABLE IF NOT EXISTS 細項 (
     品項編號 INTEGER,
     細項名稱 TEXT,
     FOREIGN KEY(品項編號) REFERENCES 品項(品項編號)
-)''')
+)
+''')
 # 進貨、銷售表
 for tbl in ['進貨','銷售']:
     c.execute(f'''
@@ -51,9 +54,9 @@ for tbl in ['進貨','銷售']:
         FOREIGN KEY(類別編號) REFERENCES 類別(類別編號),
         FOREIGN KEY(品項編號) REFERENCES 品項(品項編號),
         FOREIGN KEY(細項編號) REFERENCES 細項(細項編號)
-    )''')
+    )
+    ''')
 conn.commit()
-
 
 # --- 輔助函式 ---
 def 查詢(table):
@@ -93,14 +96,8 @@ def 取得對映(table, key, val):
 # 批次匯入函式
 def 批次匯入進貨(df):
     df.columns = df.columns.str.strip()
-    if '買入數量' in df.columns:
-        df['買入數量'] = df['買入數量'].fillna(0)
-    else:
-        df['買入數量'] = 0
-    if '買入單價' in df.columns:
-        df['買入單價'] = df['買入單價'].fillna(0)
-    else:
-        df['買入單價'] = 0
+    df['買入數量'] = df.get('買入數量', 0).fillna(0)
+    df['買入單價'] = df.get('買入單價', 0).fillna(0)
     count = 0
     for _, row in df.iterrows():
         if row['買入數量'] <= 0:
@@ -121,11 +118,11 @@ def 批次匯入進貨(df):
             'SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?',
             conn, params=(iid,sub))
         sid = df_su['細項編號'].iloc[0]
-        新增('進貨',['類別編號','品項編號','細項編號','數量','單價'],
+        新增('進貨',
+             ['類別編號','品項編號','細項編號','數量','單價'],
              [cid,iid,sid,int(row['買入數量']),float(row['買入單價'])])
         count += 1
     return count
-
 
 # --- UI ---
 st.sidebar.title('庫存管理系統')
@@ -237,10 +234,7 @@ elif menu == '進貨':
             try:
                 df = pd.read_excel(uploaded)
             except:
-                try:
-                    df = pd.read_csv(uploaded, encoding='utf-8', errors='replace')
-                except:
-                    df = pd.read_csv(uploaded, encoding='cp950', errors='replace')
+                df = pd.read_csv(uploaded)
             count = 批次匯入進貨(df)
             st.success(f'批次匯入 {count} 筆進貨記錄')
     with tab2:
@@ -269,14 +263,15 @@ elif menu == '進貨':
                     qty = st.number_input('數量', 1)
                     price = st.number_input('單價', 0.0, format='%.2f')
                     if st.button('儲存進貨'):
-                        新增('進貨',['類別編號','品項編號','細項編號','數量','單價'],
-                             [cid, iid, sid, qty, price])
+                        新增('進貨',
+                             ['類別編號','品項編號','細項編號','數量','單價'],
+                             [cid,iid,sid,qty,price])
                         st.success('進貨記錄完成')
 
 # 銷售
 elif menu == '銷售':
     st.title('➕ 批次匯入 / 手動記錄銷售')
-    st.info('同進貨模組，請至代碼中自行補齊')
+    st.info('同進貨模組，請自行補齊批次函式')
 
 # 儀表板
 elif menu == '儀表板':
@@ -284,16 +279,16 @@ elif menu == '儀表板':
     df_p = pd.read_sql('SELECT * FROM 進貨', conn)
     df_s = pd.read_sql('SELECT * FROM 銷售', conn)
     df_c = 查詢('類別'); df_c.columns = df_c.columns.str.strip(); df_c = df_c.rename(columns={'編號':'類別編號','名稱':'類別名稱'})
-    df_i = 查詢('品項');   df_i.columns = df_i.columns.str.strip();   df_i = df_i.rename(columns={'編號':'品項編號','名稱':'品項名稱'})
-    df_su= 查詢('細項');   df_su.columns = df_su.columns.str.strip();   df_su = df_su.rename(columns={'編號':'細項編號','名稱':'細項名稱'})
+    df_i = 查詢('品項'); df_i.columns = df_i.columns.str.strip(); df_i = df_i.rename(columns={'編號':'品項編號','名稱':'品項名稱'})
+    df_su= 查詢('細項'); df_su.columns = df_su.columns.str.strip(); df_su = df_su.rename(columns={'編號':'細項編號','名稱':'細項名稱'})
     df_p = (df_p.merge(df_c,on='類別編號',how='left')
                .merge(df_i,on='品項編號',how='left')
                .merge(df_su,on='細項編號',how='left'))
     df_s = (df_s.merge(df_c,on='類別編號',how='left')
                .merge(df_i,on='品項編號',how='left')
                .merge(df_su,on='細項編號',how='left'))
-    grp_p = df_p.groupby(['類別名稱','品項名稱','細項名稱'],as_index=False).agg(進貨=('數量','sum'),支出=('總價','sum'))
-    grp_s = df_s.groupby(['類別名稱','品項名稱','細項名稱'],as_index=False).agg(銷售=('數量','sum'),收入=('總價','sum'))
+    grp_p = df_p.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(進貨=('數量','sum'), 支出=('總價','sum'))
+    grp_s = df_s.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(銷售=('數量','sum'), 收入=('總價','sum'))
     summary = pd.merge(grp_p, grp_s, on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
     summary['庫存'] = summary['進貨'] - summary['銷售']
     st.dataframe(summary)
