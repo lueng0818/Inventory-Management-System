@@ -117,41 +117,11 @@ if menu == '類別管理':
             if del_id.isdigit():
                 刪除('類別','類別編號',int(del_id))
                 st.success(f'刪除類別編號：{del_id}')
-            # 請重新整理頁面以更新列表
-
-# 品項管理
-elif menu == '品項管理':
-    st.title('⚙️ 品項管理')
-    # 取得類別映射
-    cat_map = 取得對映('類別','類別編號','類別名稱')
-    if not cat_map:
-        st.warning('請先新增類別')
-        st.stop()
-    st.subheader('現有類別')
-    st.write(list(cat_map.keys()))
-    sel_cat = st.selectbox('選擇類別', list(cat_map.keys()))
-    cat_id = cat_map[sel_cat]
-    st.info(f"您選擇的類別：{sel_cat} (編號: {cat_id})")
-    # 顯示現有品項
-    df_items = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cat_id,))
-    df_items.columns = df_items.columns.str.strip()
-    st.subheader(f'「{sel_cat}」下現有品項')
-    st.table(df_items.rename(columns={'品項編號':'編號','品項名稱':'名稱'})[['編號','名稱']])
-    # 新增／刪除品項
-    with st.form('form_item'):
-        new_item = st.text_input('新增品項名稱')
-        del_item_id = st.text_input('刪除品項編號')
-        submit_item = st.form_submit_button('執行')
-        if submit_item:
-            if new_item:
-                新增('品項',['類別編號','品項名稱'],[cat_id,new_item])
-                st.success(f'於「{sel_cat}」新增品項：{new_item}')
-            if del_item_id.isdigit():
-                刪除('品項','品項編號',int(del_item_id))
-                st.success(f'刪除品項編號：{del_item_id}')
-            # 自動重新啟動或提示
+            # 自動重新載入或提示
             if hasattr(st, 'experimental_rerun'):
                 st.experimental_rerun()
+            else:
+                st.info('請重新整理頁面以更新資料表')
             else:
                 st.info('請重新整理頁面以更新列表')(f'於「{sel_cat}」新增品項：{new_item}')
             if del_item_id.isdigit():
