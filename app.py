@@ -68,8 +68,10 @@ def 查询表(table):
 
 def 新增類別(name):
     try:
-        c.execute('INSERT INTO 類別 (類別名稱) VALUES (?)',(name,))
+        c.execute('INSERT INTO "類別" ("類別名稱") VALUES (?)', (name,))
         conn.commit()
+    except sqlite3.IntegrityError:
+        pass
     except sqlite3.IntegrityError:
         pass
 
