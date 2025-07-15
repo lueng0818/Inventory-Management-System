@@ -104,30 +104,28 @@ menu = st.sidebar.radio('功能選單', [
 # 類別管理
 if menu == '類別管理':
     st.title('⚙️ 類別管理')
+    # 顯示現有類別
     df = 查詢('類別')
-    st.table(df.rename(columns={'類別編號':'編號','類別名稱':'名稱'}))
+    df.columns = df.columns.str.strip()
+    st.subheader('現有類別列表')
+    st.table(df.rename(columns={'類別編號':'編號','類別名稱':'名稱'})[['編號','名稱']])
+    # 新增或刪除類別
     with st.form('form_cat'):
-        name = st.text_input('新增類別名稱')
+        new_name = st.text_input('新增類別名稱')
         del_id = st.text_input('刪除類別編號')
         submitted = st.form_submit_button('執行')
         if submitted:
-            if name:
-                新增('類別',['類別名稱'],[name])
-                st.success(f'新增類別：{name}')
+            if new_name:
+                新增('類別',['類別名稱'],[new_name])
+                st.success(f'已新增類別：{new_name}')
             if del_id.isdigit():
                 刪除('類別','類別編號',int(del_id))
-                st.success(f'刪除類別編號：{del_id}')
-            # 自動重新載入或提示
-            if hasattr(st, 'experimental_rerun'):
+                st.success(f'已刪除類別編號：{del_id}')
+            # 自動刷新或提示
+            try:
                 st.experimental_rerun()
-            else:
+            except AttributeError:
                 st.info('請重新整理頁面以更新資料表')
-            else:
-                st.info('請重新整理頁面以更新列表')(f'於「{sel_cat}」新增品項：{new_item}')
-            if del_item_id.isdigit():
-                刪除('品項','品項編號',int(del_item_id))
-                st.success(f'刪除品項編號：{del_item_id}')
-            # 請重新整理頁面以更新列表
 
 elif menu == '進貨':
     st.info('請使用全功能版本以進行進貨記錄')
