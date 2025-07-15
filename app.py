@@ -77,13 +77,13 @@ def 取得對映(table, key, val):
     df = 查詢(table)
     df.columns = df.columns.str.strip()
     # 動態尋找包含關鍵字的欄位名稱
-    key_col = None
-    val_col = None
-    for col in df.columns:
-        if key in col:
-            key_col = col
-        if val in col:
-            val_col = col
+    key_col = next((col for col in df.columns if key in col), None)
+    val_col = next((col for col in df.columns if val in col), None)
+    # 備援檢查：若使用者看到DF列已重新rename為'編號','名稱'
+    if not key_col and '編號' in df.columns:
+        key_col = '編號'
+    if not val_col and '名稱' in df.columns:
+        val_col = '名稱'
     if key_col and val_col:
         return dict(zip(df[val_col], df[key_col]))
     st.warning(f"在 {table} 表中找不到含 '{key}' 或 '{val}' 的欄位 (現有: {df.columns.tolist()})")
