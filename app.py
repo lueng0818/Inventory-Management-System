@@ -212,9 +212,24 @@ elif menu == '進貨':
                     st.warning('無法讀取檔案，請確認為 Excel 或 CSV')
                     st.stop()
             df = df.rename(columns=lambda x: x.strip())
-            df['買入數量'] = df.get('買入 數量', df.get('買入數量', 0)).fillna(0)
-            df['買入單價'] = df.get('買入 單價', df.get('買入單價', 0)).fillna(0)
-            count = 0
+        # 清理並提取必要欄位，確保產生 Series
+        if '買入數量' in df.columns:
+            df['買入數量'] = df['買入數量'].fillna(0)
+        else:
+            df['買入數量'] = 0
+        if '買入單價' in df.columns:
+            df['買入單價'] = df['買入單價'].fillna(0)
+        else:
+            df['買入單價'] = 0
+        if '賣出數量' in df.columns:
+            df['賣出數量'] = df['賣出數量'].fillna(0)
+        else:
+            df['賣出數量'] = 0
+        if '賣出單價' in df.columns:
+            df['賣出單價'] = df['賣出單價'].fillna(0)
+        else:
+            df['賣出單價'] = 0
+        count = 0
             for _, row in df.iterrows():
                 if row['買入數量'] > 0:
                     cat, item, sub = row.get('類別'), row.get('品項'), row.get('細項')
