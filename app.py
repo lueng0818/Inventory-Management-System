@@ -117,7 +117,7 @@ if menu == '類別管理':
             if del_id.isdigit():
                 刪除('類別','類別編號',int(del_id))
                 st.success(f'刪除類別編號：{del_id}')
-            st.experimental_rerun()
+            # 請重新整理頁面以更新列表
 
 # 品項管理
 elif menu == '品項管理':
@@ -149,7 +149,7 @@ elif menu == '品項管理':
             if del_item_id.isdigit():
                 刪除('品項','品項編號',int(del_item_id))
                 st.success(f'刪除品項編號：{del_item_id}')
-            st.experimental_rerun()
+            # 請重新整理頁面以更新列表
 
 elif menu == '進貨':
     st.info('請使用全功能版本以進行進貨記錄')
