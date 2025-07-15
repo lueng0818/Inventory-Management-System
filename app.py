@@ -73,35 +73,21 @@ def 刪除(table, key, val):
     conn.commit()
 
 
-def 取得對映(table, key_col=None, val_col=None):
+def 取得對映(table: str) -> dict:
     """
-    回傳指定資料表的名稱->編號映射。
-    支援 類別、品項、細項 三張表。
+    取得名稱->編號映射，只支援 類別/品項/細項 三表。
     """
-    if table == '類別':
-        df = 查詢('類別')
-        df.columns = df.columns.str.strip()
-        return dict(zip(df['類別名稱'], df['類別編號']))
-    elif table == '品項':
-        df = 查詢('品項')
-        df.columns = df.columns.str.strip()
-        return dict(zip(df['品項名稱'], df['品項編號']))
-    elif table == '細項':
-        df = 查詢('細項')
-        df.columns = df.columns.str.strip()
-        return dict(zip(df['細項名稱'], df['細項編號']))
-    else:
-        st.warning(f"不支援的表：{table}")
-        return {}
-        except sqlite3.OperationalError:
-            # 若尚未建立類別表或DB異常，回傳空字典
-            return {}
-    df = 查詢(table)
-    df.columns = df.columns.str.strip()
-    if key_col not in df.columns or val_col not in df.columns:
-        st.warning(f"表 {table} 缺少 {key_col} 或 {val_col} 欄位")
-        return {}
-    return dict(zip(df[val_col], df[key_col]))
+    if table == "類別":
+        rows = conn.execute("SELECT 類別名稱, 類別編號 FROM 類別").fetchall()
+        return {name: cid for name, cid in rows}
+    if table == "品項":
+        rows = conn.execute("SELECT 品項名稱, 品項編號 FROM 品項").fetchall()
+        return {name: pid for name, pid in rows}
+    if table == "細項":
+        rows = conn.execute("SELECT 細項名稱, 細項編號 FROM 細項").fetchall()
+        return {name: sid for name, sid in rows}
+    return {}
+
 
 
 def 批次匯入進貨(df):
