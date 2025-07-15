@@ -82,15 +82,25 @@ def 新增細項(item_id, name):
     conn.commit()
 
 def get_categories():
-    return {row['類別名稱']:row['類別編號'] for row in 查询表('類別').to_dict('records')}
+    df = 查询表('類別')
+    df.columns = df.columns.str.strip()
+    if '類別名稱' in df.columns and '類別編號' in df.columns:
+        return dict(zip(df['類別名稱'], df['類別編號']))
+    return {}
 
 def get_items(cat_id):
     df = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cat_id,))
-    return {row['品項名稱']:row['品項編號'] for row in df.to_dict('records')}
+    df.columns = df.columns.str.strip()
+    if '品項名稱' in df.columns and '品項編號' in df.columns:
+        return dict(zip(df['品項名稱'], df['品項編號']))
+    return {}
 
 def get_subitems(item_id):
     df = pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(item_id,))
-    return {row['細項名稱']:row['細項編號'] for row in df.to_dict('records')}
+    df.columns = df.columns.str.strip()
+    if '細項名稱' in df.columns and '細項編號' in df.columns:
+        return dict(zip(df['細項名稱'], df['細項編號']))
+    return {}
 
 def 新增進貨(cat_id,item_id,sub_id,qty,price):
     total = qty*price
