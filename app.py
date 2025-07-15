@@ -72,7 +72,7 @@ def 新增(table, cols, vals):
         c.execute(sql, vals)
         conn.commit()
     except sqlite3.IntegrityError:
-        st.warning("操作失敗：可能已重複建立或外鍵限制"):
+        st.warning("操作失敗：可能已重複建立或外鍵限制")
         st.warning("操作失敗：可能已重複建立或外鍵限制")
 
 def 刪除(table, key_col, key_val):
