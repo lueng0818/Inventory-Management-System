@@ -134,10 +134,19 @@ if 選單 == '匯入/匯出':
 
 elif 選單 == '儀表板':
     st.title('📊 庫存儀表板')
-    # 讀取原始數據
+        # 讀取原始數據
     df_p = pd.read_sql('SELECT * FROM 進貨', conn)
     df_s = pd.read_sql('SELECT * FROM 銷售', conn)
+    # 清理欄位名稱空白
+    df_p.columns = df_p.columns.str.strip()
+    df_s.columns = df_s.columns.str.strip()
     # 分組計算
+    grp_p = df_p.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
+        進貨數量=('數量', 'sum'), 支出=('總價', 'sum')
+    )
+    grp_s = df_s.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
+        銷售數量=('數量', 'sum'), 收入=('總價', 'sum')
+    )
     grp_p = df_p.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
         進貨數量=('數量', 'sum'), 支出=('總價', 'sum')
     )
