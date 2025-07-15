@@ -75,8 +75,12 @@ def 刪除(table, key, val):
 
 def 取得對映(table, key_col, val_col):
     if table == '類別':
-        rows = conn.execute('SELECT 類別編號, 類別名稱 FROM 類別').fetchall()
-        return {name: cid for cid, name in rows}
+        try:
+            rows = conn.execute('SELECT 類別編號, 類別名稱 FROM 類別').fetchall()
+            return {name: cid for cid, name in rows}
+        except sqlite3.OperationalError:
+            # 若尚未建立類別表或DB異常，回傳空字典
+            return {}
     df = 查詢(table)
     df.columns = df.columns.str.strip()
     if key_col not in df.columns or val_col not in df.columns:
