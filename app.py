@@ -134,27 +134,37 @@ if 選單 == '匯入/匯出':
 
 elif 選單 == '儀表板':
     st.title('📊 庫存儀表板')
-    df_p = pd.read_sql('SELECT 類別編號, 品項, 細項, SUM(數量) AS 進貨數量, SUM(總價) AS 支出 FROM 進貨 GROUP BY 類別編號, 品項, 細項', conn)
-    df_s = pd.read_sql('SELECT 類別編號, 品項, 細項, SUM(數量) AS 銷售數量, SUM(總價) AS 收入 FROM 銷售 GROUP BY 類別編號, 品項, 細項', conn)
-    df_p.columns = ['類別編號', '品項', '細項', '進貨數量', '支出']
-    df_s.columns = ['類別編號', '品項', '細項', '銷售數量', '收入']
-    summary = df_p.merge(df_s, on=['類別編號', '品項', '細項'], how='outer').fillna(0)
+    # 讀取原始數據
+    df_p = pd.read_sql('SELECT * FROM 進貨', conn)
+    df_s = pd.read_sql('SELECT * FROM 銷售', conn)
+    # 分組計算
+    grp_p = df_p.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
+        進貨數量=('數量', 'sum'), 支出=('總價', 'sum')
+    )
+    grp_s = df_s.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
+        銷售數量=('數量', 'sum'), 收入=('總價', 'sum')
+    )
+    summary = pd.merge(grp_p, grp_s, on=['類別編號', '品項', '細項'], how='outer').fillna(0)
     summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
-    cats = {v: k for k, v in 取得類別().items()}
-    summary['類別'] = summary['類別編號'].map(cats)
-    st.dataframe(summary[['類別', '品項', '細項', '進貨數量', '銷售數量', '庫存']])
+    # 加回類別名稱
+    cats_map = 取得類別()
+    inv = summary.copy()
+    inv['類別'] = inv['類別編號'].map(lambda x: {v:k for k,v in cats_map.items()}.get(x, ''))
+    st.dataframe(inv[['類別', '品項', '細項', '進貨數量', '銷售數量', '庫存']])
+    # 財務概覽
     total_exp = summary['支出'].sum()
     total_rev = summary['收入'].sum()
     st.subheader('💰 財務概況')
     st.metric('總支出', f"{total_exp:.2f}")
     st.metric('總收入', f"{total_rev:.2f}")
     st.metric('淨利潤', f"{total_rev - total_exp:.2f}")
-    rems = pd.read_sql('SELECT * FROM 補貨提醒 WHERE 提醒=1', conn)
-    if not rems.empty:
+    # 補貨提醒
+    df_r = pd.read_sql('SELECT * FROM 補貨提醒 WHERE 提醒=1', conn)
+    if not df_r.empty:
         st.subheader('⚠️ 需補貨清單')
-        for _, r in rems.iterrows():
-            cat_name = {v: k for k, v in 取得類別().items()}.get(r['類別編號'], '')
-            st.warning(f"{cat_name} / {r['品項']} / {r['細項']} 需補貨")
+        for _, r in df_r.iterrows():
+            cname = {v:k for k,v in cats_map.items()}.get(r['類別編號'], '')
+            st.warning(f"{cname} / {r['品項']} / {r['細項']} 需補貨")
 
 elif 選單 == '類別管理':
     st.title('⚙️ 類別管理')
