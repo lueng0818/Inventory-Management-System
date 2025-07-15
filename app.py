@@ -144,92 +144,16 @@ if menu == '類別管理':
                 st.success(f'已刪除類別編號：{del_id}')
             try:
                 st.experimental_rerun()
-            except:
-                st.info('請刷新以更新列表')
-
-# 品項管理
-elif menu == '品項管理':
-    st.title('⚙️ 品項管理')
-    cat_map = 取得對映('類別','類別編號','類別名稱')
-    if not cat_map:
-        st.warning('請先新增類別')
-    else:
-        st.subheader('現有類別')
-        st.write(list(cat_map.keys()))
-        sel_cat = st.selectbox('選擇類別', list(cat_map.keys()))
-        cid = cat_map[sel_cat]
-        st.info(f'您選擇：{sel_cat} (編號{cid})')
-        df_items = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
-        df_items.columns = df_items.columns.str.strip()
-        st.subheader(f'「{sel_cat}」下品項')
-        st.table(df_items.rename(columns={'品項編號':'編號','品項名稱':'名稱'})[['編號','名稱']])
-        with st.form('form_item'):
-            new_item=st.text_input('新增品項')
-            del_item_id=st.text_input('刪除品項編號')
-            sb=st.form_submit_button('執行')
-            if sb:
-                if new_item:
-                    新增('品項',['類別編號','品項名稱'],[cid,new_item])
-                    st.success(f'新增品項：{new_item}')
-                if del_item_id.isdigit():
-                    刪除('品項','品項編號',int(del_item_id))
-                    st.success(f'刪除品項編號：{del_item_id}')
+                        except:
                 try:
-                    st.experimental_rerun()
-                except:
-                    st.info('請刷新以更新列表')
-
-# 細項管理
-elif menu == '細項管理':
-    st.title('⚙️ 細項管理')
-    sel_cat_map = 取得對映('類別','類別編號','類別名稱')
-    if not sel_cat_map:
-        st.warning('請先新增類別')
-    else:
-        st.write(list(sel_cat_map.keys()))
-        sel_cat = st.selectbox('類別', list(sel_cat_map.keys()))
-        cid = sel_cat_map[sel_cat]
-        df_i = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
-        df_i.columns=df_i.columns.str.strip()
-        item_map={r['品項名稱']:r['品項編號'] for _,r in df_i.iterrows()}
-        if not item_map:
-            st.warning('該類別無品項')
-        else:
-            st.write(list(item_map.keys()))
-            sel_item=st.selectbox('品項',list(item_map.keys()))
-            iid=item_map[sel_item]
-            df_sub=pd.read_sql('SELECT * FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
-            df_sub.columns=df_sub.columns.str.strip()
-            st.subheader(f'「{sel_item}」細項')
-            st.table(df_sub.rename(columns={'細項編號':'編號','細項名稱':'名稱'})[['編號','名稱']])
-            with st.form('form_sub'):
-                new_sub=st.text_input('新增細項')
-                del_sub_id=st.text_input('刪除細項編號')
-                sb2=st.form_submit_button('執行')
-                if sb2:
-                    if new_sub:
-                        新增('細項',['品項編號','細項名稱'],[iid,new_sub])
-                        st.success(f'新增細項：{new_sub}')
-                    if del_sub_id.isdigit():
-                        刪除('細項','細項編號',int(del_sub_id))
-                        st.success(f'刪除細項編號：{del_sub_id}')
+                    df = pd.read_csv(uploaded, encoding='utf-8', errors='replace')
+                except Exception:
                     try:
-                        st.experimental_rerun()
-                    except:
-                        st.info('請刷新列表')
-
-# 進貨
-elif menu == '進貨':
-    st.title('➕ 批次匯入 / 手動記錄進貨')
-    tab1,tab2=st.tabs(['批次匯入','手動記錄'])
-    with tab1:
-        uploaded=st.file_uploader('上傳 Excel/CSV',type=['xlsx','xls','csv'])
-        if uploaded:
-            try:
-                df=pd.read_excel(uploaded)
-            except:
-                df=pd.read_csv(uploaded)
-            count=批次匯入進貨(df)
+                        df = pd.read_csv(uploaded, encoding='cp950', errors='replace')
+                    except Exception:
+                        st.warning('CSV 解碼失敗，請確認編碼為 UTF-8 或 CP950')
+                        st.stop()
+            count=批次匯入進貨(df)(df)
             st.success(f'批次匯入 {count} 筆進貨')
     with tab2:
         cat_map=取得對映('類別','類別編號','類別名稱')
