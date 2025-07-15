@@ -114,9 +114,19 @@ if os.path.exists(IMPORT_PATH):
 
 # --- Streamlit 應用 ---
 st.sidebar.title('庫存管理系統')
-選單 = st.sidebar.radio('功能選單', ['儀表板', '類別管理', '新增進貨', '新增銷售', '檢視紀錄', '匯入/匯出'])
+選單 = st.sidebar.radio('功能選單', ['重置資料', '儀表板', '類別管理', '新增進貨', '新增銷售', '檢視紀錄', '匯入/匯出'])
 
-if 選單 == '匯入/匯出':
+if 選單 == '重置資料':
+    st.title('🗑️ 重置資料庫')
+    if st.button('確認清空所有資料'):
+        conn.close()
+        import os
+        if os.path.exists('database.db'):
+            os.remove('database.db')
+        st.success('已刪除資料庫，請重新啟動應用以重建資料表')
+        st.stop()
+
+elif 選單 == '匯入/匯出':
     st.title('📥 匯入 / 匯出')
     up = st.file_uploader('上傳 integrated_inventory.csv', type='csv')
     if up:
@@ -134,26 +144,52 @@ if 選單 == '匯入/匯出':
 
 elif 選單 == '儀表板':
     st.title('📊 庫存儀表板')
-        # 讀取原始數據
+            # 讀取原始數據
     df_p = pd.read_sql('SELECT * FROM 進貨', conn)
     df_s = pd.read_sql('SELECT * FROM 銷售', conn)
-    # 清理欄位名稱空白
+    # 清理欄位名稱
     df_p.columns = df_p.columns.str.strip()
     df_s.columns = df_s.columns.str.strip()
+    # 動態偵測欄位名稱
+    cols_p = df_p.columns.tolist()
+    col_cat = next((c for c in cols_p if '類別' in c), None)
+    col_item = next((c for c in cols_p if '品項' in c), None)
+    col_sub = next((c for c in cols_p if '細項' in c), None)
+    col_qty = next((c for c in cols_p if '數量' in c and '進貨數量' not in c), None)
+    col_total = next((c for c in cols_p if '總價' in c or '支出' in c), None)
     # 分組計算
-    grp_p = df_p.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
-        進貨數量=('數量', 'sum'), 支出=('總價', 'sum')
+    grp_p = df_p.groupby([col_cat, col_item, col_sub], as_index=False).agg(
+        進貨數量=(col_qty, 'sum'), 支出=(col_total, 'sum')
     )
-    grp_s = df_s.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
-        銷售數量=('數量', 'sum'), 收入=('總價', 'sum')
+    cols_s = df_s.columns.tolist()
+    col_qty_s = next((c for c in cols_s if '數量' in c and '銷售' not in c), None)
+    col_total_s = next((c for c in cols_s if '總價' in c or '收入' in c), None)
+    grp_s = df_s.groupby([col_cat, col_item, col_sub], as_index=False).agg(
+        銷售數量=(col_qty_s, 'sum'), 收入=(col_total_s, 'sum')
     )
-    grp_p = df_p.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
-        進貨數量=('數量', 'sum'), 支出=('總價', 'sum')
-    )
-    grp_s = df_s.groupby(['類別編號', '品項', '細項'], as_index=False).agg(
-        銷售數量=('數量', 'sum'), 收入=('總價', 'sum')
-    )
-    summary = pd.merge(grp_p, grp_s, on=['類別編號', '品項', '細項'], how='outer').fillna(0)
+    # 合併結果
+    summary = pd.merge(grp_p, grp_s, on=[col_cat, col_item, col_sub], how='outer').fillna(0)
+    summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
+    # 加回類別名稱
+    cats_map = 取得類別()
+    inv = summary.copy()
+    inv['類別'] = inv[col_cat].map(lambda x: {v:k for k,v in cats_map.items()}.get(x, ''))
+    # 顯示
+    st.dataframe(inv[['類別', col_item, col_sub, '進貨數量', '銷售數量', '庫存']])
+    # 財務概覽
+    total_exp = summary['支出'].sum()
+    total_rev = summary['收入'].sum()
+    st.subheader('💰 財務概況')
+    st.metric('總支出', f"{total_exp:.2f}")
+    st.metric('總收入', f"{total_rev:.2f}")
+    st.metric('淨利潤', f"{total_rev - total_exp:.2f}")
+    # 補貨提醒
+    df_r = pd.read_sql('SELECT * FROM 補貨提醒 WHERE 提醒=1', conn)
+    if not df_r.empty:
+        st.subheader('⚠️ 需補貨清單')
+        for _, r in df_r.iterrows():
+            cname = {v:k for k,v in cats_map.items()}.get(r[col_cat], '')
+            st.warning(f"{cname} / {r[col_item]} / {r[col_sub]} 需補貨")(grp_p, grp_s, on=['類別編號', '品項', '細項'], how='outer').fillna(0)
     summary['庫存'] = summary['進貨數量'] - summary['銷售數量']
     # 加回類別名稱
     cats_map = 取得類別()
