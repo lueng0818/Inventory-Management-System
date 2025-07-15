@@ -187,13 +187,39 @@ elif 頁面 == "新增銷售":
 else:  # 檢視紀錄
     st.title("📚 檢視所有紀錄")
     # 分別讀取進貨與銷售，再於 Pandas 中合併分類名稱
-    df_進貨 = pd.read_sql('SELECT * FROM 進貨 ORDER BY 日期 DESC', conn)
+        df_進貨 = pd.read_sql('SELECT * FROM 進貨 ORDER BY 日期 DESC', conn)
     df_銷售 = pd.read_sql('SELECT * FROM 銷售 ORDER BY 日期 DESC', conn)
     df_類別 = pd.read_sql('SELECT 編號, 名稱 FROM 類別', conn)
-    # 合併
-    dfp = df_進貨.merge(df_類別, left_on='類別編號', right_on='編號', how='left')
-    dfs = df_銷售.merge(df_類別, left_on='類別編號', right_on='編號', how='left')
+    # 合併分類名稱，保留進貨編號
+    dfp = df_進貨.merge(
+        df_類別,
+        left_on='類別編號',
+        right_on='編號',
+        how='left',
+        suffixes=('', '_cat')
+    )
+    dfs = df_銷售.merge(
+        df_類別,
+        left_on='類別編號',
+        right_on='編號',
+        how='left',
+        suffixes=('', '_cat')
+    )
     # 顯示
+    st.subheader('進貨紀錄')
+    st.dataframe(
+        dfp[['編號','日期','名稱','品項','細項','數量','單價']]
+        .rename(columns={'編號':'編號','名稱':'類別'})
+    )
+    st.subheader('銷售紀錄')
+    st.dataframe(
+        dfs[['編號','日期','名稱','品項','細項','數量','單價']]
+        .rename(columns={'編號':'編號','名稱':'類別'})
+    )
+
+# requirements.txt:
+# streamlit
+# pandas
     st.subheader('進貨紀錄')
     st.dataframe(dfp[['編號_x','日期','名稱','品項','細項','數量','單價']]
                  .rename(columns={'編號_x':'編號','名稱':'類別'}))
