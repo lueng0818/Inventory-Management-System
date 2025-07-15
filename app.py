@@ -214,7 +214,11 @@ elif menu == '批次匯入買賣進出表':
     st.title('📥 批次匯入買賣進出表')
     uploaded = st.file_uploader('上傳買賣進出 Excel 檔', type=['xlsx','xls'])
     if uploaded:
+        try:
         df = pd.read_excel(uploaded)
+    except ImportError:
+        st.warning('pandas 讀取 Excel 需 openpyxl，嘗試以 CSV 格式重新上傳')
+        return
         # 預處理欄位
         df = df.rename(columns=lambda x: x.strip())
         # 清理並提取必要欄位
