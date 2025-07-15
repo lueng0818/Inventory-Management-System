@@ -131,7 +131,29 @@ elif menu == '進貨':
     st.info('請使用全功能版本以進行進貨記錄')
 elif menu == '銷售':
     st.info('請使用全功能版本以進行銷售記錄')
+elif menu == '儀表板':
+    # 儀表板：整合進貨與銷售顯示庫存與收支
+    st.title('📊 庫存儀表板')
+    df_p = pd.read_sql('SELECT * FROM 進貨', conn)
+    df_s = pd.read_sql('SELECT * FROM 銷售', conn)
+    # 合併類別、品項、細項名稱
+    df_c = 查詢('類別'); df_c.columns = df_c.columns.str.strip()
+    df_i = 查詢('品項');   df_i.columns = df_i.columns.str.strip()
+    df_su= 查詢('細項');   df_su.columns = df_su.columns.str.strip()
+    df_p = df_p.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+    df_s = df_s.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+    grp_p = df_p.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(進貨=('數量','sum'), 支出=('總價','sum'))
+    grp_s = df_s.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(銷售=('數量','sum'), 收入=('總價','sum'))
+    summary = pd.merge(grp_p, grp_s, on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
+    summary['庫存'] = summary['進貨'] - summary['銷售']
+    st.dataframe(summary)
+    total_exp = grp_p['支出'].sum(); total_rev = grp_s['收入'].sum()
+    st.subheader('💰 財務概況')
+    st.metric('總支出', f"{total_exp:.2f}")
+    st.metric('總收入', f"{total_rev:.2f}")
+    st.metric('淨利', f"{total_rev - total_exp:.2f}")
 else:
+    st.info('請使用全功能版本以查看儀表板')
     st.info('請使用全功能版本以查看儀表板')
 
 # requirements.txt
