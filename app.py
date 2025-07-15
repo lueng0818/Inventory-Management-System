@@ -128,36 +128,9 @@ elif menu == '品項管理':
         st.stop()
     st.subheader('現有類別')
     st.write(list(cat_map.values()))
-    sel_cat = st.selectbox('選擇類別', list(cat_map.values()))
-    cat_id = {v:k for k,v in cat_map.items()}[sel_cat]
-    df = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cat_id,))
-    st.table(df.rename(columns={'品項編號':'編號','品項名稱':'名稱'}))
-    with st.form('form_item'):
-        name = st.text_input('新增品項名稱')
-        del_id = st.text_input('刪除品項編號')
-        sb = st.form_submit_button('執行')
-        if sb:
-            if name:
-                新增('品項',['類別編號','品項名稱'],[cat_id,name])
-                st.success(f'於「{sel_cat}」新增品項：{name}')
-            if del_id.isdigit():
-                刪除('品項','品項編號',int(del_id))
-                st.success(f'刪除品項編號：{del_id}')
-            st.experimental_rerun()
-
-# 細項管理
-elif menu == '細項管理':
-    st.title('⚙️ 細項管理')
-    # 取得類別映射: 名稱->編號
-    cat_map = 取得對映('類別','類別編號','類別名稱')
-    if not cat_map:
-        st.warning('請先新增類別')
-        st.stop()
-    st.subheader('現有類別')
-    st.write(list(cat_map.keys()))
-    # 選擇類別名稱
     sel_cat = st.selectbox('選擇類別', list(cat_map.keys()))
     cat_id = cat_map[sel_cat]
+    st.info(f"您選擇的類別：{sel_cat} (編號: {cat_id})")
     # 取得品項映射: 名稱->編號
     item_map_full = 取得對映('品項','品項編號','品項名稱')
     # 過濾屬於該類別的品項
