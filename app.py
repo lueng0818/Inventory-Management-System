@@ -136,16 +136,23 @@ if menu=='類別管理':
 
 elif menu=='品項管理':
     st.title('⚙️ 品項管理')
+    # 取得現有類別
     cats = get_categories()
     if not cats:
-        st.warning('請先至「類別管理」新增至少一個類別')
+        st.warning('請先新增至少一個類別')
         st.stop()
+    st.subheader('🔍 目前類別')
+    st.write(list(cats.keys()))
+    # 選擇類別建立品項
     cat = st.selectbox('選擇類別', list(cats.keys()))
     df = pd.read_sql('SELECT * FROM 品項 WHERE 類別編號=?', conn, params=(cats[cat],))
-    st.table(df)
-    name = st.text_input('新增品項')
+    st.subheader('📋 該類別下現有品項')
+    st.table(df[['品項編號','品項名稱']].rename(columns={'品項編號':'編號','品項名稱':'品項'}))
+    st.subheader('➕ 新增品項')
+    name = st.text_input('輸入新品項名稱')
     if st.button('新增品項') and name:
         新增品項(cats[cat], name)
+        st.success(f'已於「{cat}」下新增品項：「{name}」')
         st.experimental_rerun()
 
 elif menu=='細項管理':
