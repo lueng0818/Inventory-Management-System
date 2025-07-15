@@ -186,11 +186,20 @@ elif 頁面 == "新增銷售":
 
 else:  # 檢視紀錄
     st.title("📚 檢視所有紀錄")
-    dfp = pd.read_sql('SELECT 編號,日期,類別.名稱 as 類別,品項,細項,數量,單價 FROM 進貨 JOIN 類別 ON 進貨.類別編號=類別.編號 ORDER BY 日期 DESC',conn)
-    dfs = pd.read_sql('SELECT 編號,日期,類別.名稱 as 類別,品項,細項,數量,單價 FROM 銷售 JOIN 類別 ON 銷售.類別編號=類別.編號 ORDER BY 日期 DESC',conn)
+    dfp = pd.read_sql(
+        'SELECT "進貨"."編號", "進貨"."日期", "類別"."名稱" AS "類別", "進貨"."品項", "進貨"."細項", "進貨"."數量", "進貨"."單價" '
+        'FROM "進貨" INNER JOIN "類別" ON "進貨"."類別編號" = "類別"."編號" '
+        'ORDER BY "進貨"."日期" DESC', conn)
+    dfs = pd.read_sql(
+        'SELECT "銷售"."編號", "銷售"."日期", "類別"."名稱" AS "類別", "銷售"."品項", "銷售"."細項", "銷售"."數量", "銷售"."單價" '
+        'FROM "銷售" INNER JOIN "類別" ON "銷售"."類別編號" = "類別"."編號" '
+        'ORDER BY "銷售"."日期" DESC', conn)
     st.subheader('進貨紀錄'); st.dataframe(dfp)
     st.subheader('銷售紀錄'); st.dataframe(dfs)
 
 # requirements.txt:
+# streamlit
+# pandas
+
 # streamlit
 # pandas
