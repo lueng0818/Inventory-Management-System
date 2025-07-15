@@ -158,14 +158,55 @@ elif menu=='細項管理':
 
 elif menu=='進貨':
     st.title('➕ 新增進貨')
-    cats=get_categories(); cat=st.selectbox('類別',list(cats.keys()))
-    items=get_items(cats[cat]); item=st.selectbox('品項',list(items.keys()))
-    subs=get_subitems(items[item]); sub=st.selectbox('細項',list(subs.keys()))
-    qty=st.number_input('數量',1); price=st.number_input('單價',0.0,format='%.2f')
+    # 選擇類別並取得ID
+    cat_items = list(get_categories().items())
+    if not cat_items:
+        st.warning('請先新增類別')
+        st.stop()
+    cat_name, cat_id = st.selectbox('類別', cat_items, format_func=lambda x: x[0])
+    # 選擇品項並取得ID
+    item_items = list(get_items(cat_id).items())
+    if not item_items:
+        st.warning('該分類尚無品項，請先新增品項')
+        st.stop()
+    item_name, item_id = st.selectbox('品項', item_items, format_func=lambda x: x[0])
+    # 選擇細項並取得ID
+    sub_items = list(get_subitems(item_id).items())
+    if not sub_items:
+        st.warning('該品項尚無細項，請先新增細項')
+        st.stop()
+    sub_name, sub_id = st.selectbox('細項', sub_items, format_func=lambda x: x[0])
+    # 數量與單價
+    qty = st.number_input('數量', 1)
+    price = st.number_input('單價', 0.0, format='%.2f')
     if st.button('記錄進貨'):
-        新增進貨(cats[cat],items[item],subs[sub],qty,price); st.success('完成')
+        新增進貨(cat_id, item_id, sub_id, qty, price)
+        st.success('完成')
 
 elif menu=='銷售':
+    st.title('➕ 新增銷售')
+    cat_items = list(get_categories().items())
+    if not cat_items:
+        st.warning('請先新增類別')
+        st.stop()
+    cat_name, cat_id = st.selectbox('類別', cat_items, format_func=lambda x: x[0])
+    item_items = list(get_items(cat_id).items())
+    if not item_items:
+        st.warning('該分類尚無品項，請先新增品項')
+        st.stop()
+    item_name, item_id = st.selectbox('品項', item_items, format_func=lambda x: x[0])
+    sub_items = list(get_subitems(item_id).items())
+    if not sub_items:
+        st.warning('該品項尚無細項，請先新增細項')
+        st.stop()
+    sub_name, sub_id = st.selectbox('細項', sub_items, format_func=lambda x: x[0])
+    qty = st.number_input('數量', 1)
+    price = st.number_input('單價', 0.0, format='%.2f')
+    if st.button('記錄銷售'):
+        新增銷售(cat_id, item_id, sub_id, qty, price)
+        st.success('完成')
+
+else:
     st.title('➕ 新增銷售')
     cats=get_categories(); cat=st.selectbox('類別',list(cats.keys()))
     items=get_items(cats[cat]); item=st.selectbox('品項',list(items.keys()))
