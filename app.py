@@ -62,11 +62,18 @@ def 刪除(table, key, val):
     conn.commit()
 
 def 取得對映(table, key_col, val_col):
-    # 類別專用
+    # 專門處理「類別」表：直接使用 SQLite 查詢
     if table == '類別':
-        try:
-            rows = conn.execute('SELECT 類別編號, 類別名稱 FROM 類別').fetchall()
-            return {name: cid for cid, name in rows}
+        rows = conn.execute('SELECT 類別編號, 類別名稱 FROM 類別').fetchall()
+        # rows 為 [(編號, 名稱), ...]
+        return {name: cid for cid, name in [(row[0], row[1]) for row in rows]}
+    # 通用映射
+    df = 查詢(table)
+    df.columns = df.columns.str.strip()
+    if key_col not in df.columns or val_col not in df.columns:
+        st.warning(f'表「{table}」缺少 {key_col} 或 {val_col} 欄位')
+        return {}
+    return dict(zip(df[val_col], df[key_col]))
         except Exception:
             st.warning('類別查詢失敗')
             return {}
