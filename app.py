@@ -104,10 +104,14 @@ elif menu == '品項管理':
     if not cmap:
         st.warning('請先到「類別管理」建立類別')
     else:
-        sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
-        if sel_cat!='請選擇':
+        sel_cat = st.selectbox('選擇類別', ['請選擇'] + list(cmap.keys()))
+        if sel_cat != '請選擇':
             cid = cmap[sel_cat]
-            df = pd.read_sql('SELECT 品項編號,細項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,)).rename(columns={'品項編號':'編號','品項名稱':'名稱'})
+            # 修正：僅選取品項編號與品項名稱
+            df = pd.read_sql(
+                'SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?',
+                conn, params=(cid,)
+            ).rename(columns={'品項編號':'編號','品項名稱':'名稱'})
             st.table(df)
             with st.form('form_item'):
                 new_item = st.text_input('新增品項')
