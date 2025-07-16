@@ -73,12 +73,15 @@ def 取得對映(table: str) -> dict:
         '品項': ('品項名稱', '品項編號'),
         '細項': ('細項名稱', '細項編號')
     }
-    rows = conn.execute(f"SELECT {mapping[table][0]}, {mapping[table][1]} FROM {table}").fetchall()
+    name_col, id_col = mapping.get(table, (None, None))
+    rows = conn.execute(f"SELECT {name_col}, {id_col} FROM {table}").fetchall() if name_col else []
     return {name: idx for name, idx in rows}
 
 # --- UI 分支 ---
 st.sidebar.title("庫存管理系統")
-menu = st.sidebar.radio("功能選單", ['類別管理', '品項管理', '細項管理', '進貨', '銷售', '儀表板'])
+menu = st.sidebar.radio("功能選單", [
+    '類別管理', '品項管理', '細項管理', '進貨', '銷售', '儀表板'
+])
 
 # 類別管理
 if menu == '類別管理':
@@ -105,8 +108,11 @@ elif menu == '品項管理':
         sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
         if sel_cat!='請選擇':
             cid = cmap[sel_cat]
-            df = pd.read_sql('SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
-            st.table(df.rename(columns={'品項編號':'編號','品項名稱':'名稱'}))
+            df = pd.read_sql(
+                'SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?',
+                conn, params=(cid,)
+            ).rename(columns={'品項編號':'編號','品項名稱':'名稱'})
+            st.table(df)
             with st.form('form_item'):
                 new_item = st.text_input('新增品項')
                 del_item = st.text_input('刪除品項編號')
@@ -125,27 +131,31 @@ elif menu == '細項管理':
         sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
         if sel_cat!='請選擇':
             cid = cmap[sel_cat]
-            items = pd.read_sql('SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
-            imap = dict(zip(items['品項名稱'],items['品項編號']))
+            items = pd.read_sql(
+                'SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,)
+            )
+            imap = dict(zip(items['品項名稱'], items['品項編號']))
             sel_item = st.selectbox('選擇品項', ['請選擇']+list(imap.keys()))
             if sel_item!='請選擇':
                 iid = imap[sel_item]
-                subs = pd.read_sql('SELECT 細項編號, 細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
-                sub_map = dict(zip(subs['細項名稱'],subs['細項編號']))
-                actions = ['新增細項','刪除細項']+list(sub_map.keys())
+                subs = pd.read_sql(
+                    'SELECT 細項編號, 細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,)
+                )
+                sub_map = dict(zip(subs['細項名稱'], subs['細項編號']))
+                actions = ['新增細項','刪除細項'] + list(sub_map.keys())
                 sel_action = st.selectbox('操作：', actions)
-                # 新增
-                if sel_action=='新增細項':
+                if sel_action == '新增細項':
                     with st.form('form_new'):
-                        name = st.text_input('細項名稱')
+                        name = st.text_input('新細項名稱')
                         if st.form_submit_button('新增') and name:
-                            新增('細項',['品項編號','細項名稱'],[iid,name]); st.experimental_rerun()
-                # 刪除
-                elif sel_action=='刪除細項':
+                            新增('細項',['品項編號','細項名稱'],[iid,name])
+                            st.experimental_rerun()
+                elif sel_action == '刪除細項':
                     del_name = st.selectbox('選擇刪除', ['請選擇']+list(sub_map.keys()))
                     if del_name!='請選擇' and st.button('確認刪除'):
-                        刪除('細項','細項編號',sub_map[del_name]); st.success(f'刪除 {del_name}'); st.experimental_rerun()
-                # 編輯初始庫存
+                        刪除('細項','細項編號', sub_map[del_name])
+                        st.success(f'已刪除細項：{del_name}')
+                        st.experimental_rerun()
                 else:
                     sid = sub_map[sel_action]
                     with st.form('form_init'):
@@ -164,10 +174,10 @@ elif menu == '細項管理':
                             # 顯示更新後資訊
                             st.write({'細項名稱': sel_action, '數量': q, '單價': p, '日期': d})
 
-# 進貨/銷售管理...
+# 進貨/銷售管理 (略)
 elif menu in ['進貨','銷售']:
     pass
 
-# 儀表板
-elif menu=='儀表板':
+# 儀表板 (略)
+elif menu == '儀表板':
     pass
