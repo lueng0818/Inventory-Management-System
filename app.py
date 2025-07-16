@@ -186,6 +186,8 @@ elif menu == '細項管理':
                                     更新('進貨','紀錄ID',rid,'數量',new_q)
                                     更新('進貨','紀錄ID',rid,'總價',new_total)
                                     st.success(f'已更新初始庫存數量為 {new_q}')
+                                    # 重新載入頁面以在儀表板反映更新
+                                    st.experimental_rerun()
                             # 顯示儀表板中該細項最新統計
                             df_p = pd.read_sql('SELECT * FROM 進貨', conn)
                             df_s = pd.read_sql('SELECT * FROM 銷售', conn)
