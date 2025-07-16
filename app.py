@@ -226,6 +226,38 @@ elif menu=='銷售':
                         新增('銷售', ['類別編號','品項編號','細項編號','數量','單價','總價','日期'], [cid,iid,sid,qty,price,total,date])
                         st.success(f'銷售記錄已儲存：{date}')
 
+# 日期查詢
+elif menu == '日期查詢':
+    st.header('📅 按日期查詢')
+    col1, col2 = st.columns(2)
+    with col1:
+        start = st.date_input('開始日期')
+    with col2:
+        end = st.date_input('結束日期')
+    if start > end:
+        st.error('開始日期不可晚於結束日期')
+    else:
+        df_p = pd.read_sql('SELECT * FROM 進貨', conn)
+        df_s = pd.read_sql('SELECT * FROM 銷售', conn)
+        df_p['日期'] = pd.to_datetime(df_p['日期'])
+        df_s['日期'] = pd.to_datetime(df_s['日期'])
+        mask_p = (df_p['日期'] >= pd.to_datetime(start)) & (df_p['日期'] <= pd.to_datetime(end))
+        mask_s = (df_s['日期'] >= pd.to_datetime(start)) & (df_s['日期'] <= pd.to_datetime(end))
+        sel_p = df_p.loc[mask_p]
+        sel_s = df_s.loc[mask_s]
+        df_c = 查詢('類別'); df_i = 查詢('品項'); df_su = 查詢('細項')
+        sel_p = sel_p.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+        sel_s = sel_s.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+        gp = sel_p.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'進貨支出'})
+        gs = sel_s.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'銷售收入'})
+        summary_date = pd.merge(gp, gs, on='類別名稱', how='outer').fillna(0)
+        st.subheader(f'{start} 至 {end} 各類別統計')
+        st.dataframe(summary_date, use_container_width=True)
+        total_p = sel_p['總價'].sum()
+        total_s = sel_s['總價'].sum()
+        st.metric('所選期間總進貨支出', f"{total_p:.2f}")
+        st.metric('所選期間總銷售收入', f"{total_s:.2f}")
+
 # 儀表板
 elif menu=='儀表板':
     st.header('📊 庫存儀表板')
