@@ -228,24 +228,54 @@ elif menu=='銷售':
 # 儀表板
 elif menu=='儀表板':
     st.header('📊 庫存儀表板')
+    # 讀取資料
     df_p = pd.read_sql('SELECT * FROM 進貨', conn)
     df_s = pd.read_sql('SELECT * FROM 銷售', conn)
     df_c = 查詢('類別')
     df_i = 查詢('品項')
     df_su = 查詢('細項')
-    gp = (df_p.merge(df_c, on='類別編號')
-           .merge(df_i, on='品項編號')
-           .merge(df_su, on='細項編號')
-           .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
-           .agg(進貨=('數量','sum'), 支出=('總價','sum')))
-    gs = (df_s.merge(df_c, on='類別編號')
-           .merge(df_i, on='品項編號')
-           .merge(df_su, on='細項編號')
-           .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
-           .agg(銷售=('數量','sum'), 收入=('總價','sum')))
+    # 彙總進貨
+    gp = (
+        df_p.merge(df_c, on='類別編號')
+            .merge(df_i, on='品項編號')
+            .merge(df_su, on='細項編號')
+            .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
+            .agg(
+                進貨數量=('數量','sum'),
+                進貨支出=('總價','sum')
+            )
+    )
+    # 彙總銷售
+    gs = (
+        df_s.merge(df_c, on='類別編號')
+            .merge(df_i, on='品項編號')
+            .merge(df_su, on='細項編號')
+            .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
+            .agg(
+                銷售數量=('數量','sum'),
+                銷售收入=('總價','sum')
+            )
+    )
+    # 合併並計算庫存
     summary = pd.merge(gp, gs, on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
-    summary['庫存'] = summary['進貨'] - summary['銷售']
-    st.dataframe(summary, use_container_width=True)
-    st.metric('總支出', f"{gp['支出'].sum():.2f}")
-    st.metric('總收入', f"{gs['收入'].sum():.2f}")
-    st.metric('淨利', f"{gs['收入'].sum()-gp['支出'].sum():.2f}")
+    summary['庫存數量'] = summary['進貨數量'] - summary['銷售數量']
+    # 計算平均進貨單價及庫存價值
+    summary['平均進貨單價'] = summary.apply(
+        lambda row: row['進貨支出']/row['進貨數量'] if row['進貨數量']>0 else 0, axis=1
+    )
+    summary['庫存價值'] = summary['庫存數量'] * summary['平均進貨單價']
+    # 顯示 DataFrame
+    st.dataframe(
+        summary[['類別名稱','品項名稱','細項名稱',
+                 '進貨數量','進貨支出',
+                 '銷售數量','銷售收入',
+                 '庫存數量','平均進貨單價','庫存價值']],
+        use_container_width=True
+    )
+    # 全局指標
+    total_purchase = summary['進貨支出'].sum()
+    total_sales = summary['銷售收入'].sum()
+    total_inventory_value = summary['庫存價值'].sum()
+    st.metric('總進貨支出', f"{total_purchase:.2f}")
+    st.metric('總銷售收入', f"{total_sales:.2f}")
+    st.metric('總庫存價值', f"{total_inventory_value:.2f}")
