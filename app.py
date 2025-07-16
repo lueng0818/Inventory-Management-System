@@ -1,3 +1,6 @@
+import os
+if os.path.exists('database.db'):
+    os.remove('database.db')
 import streamlit as st
 import sqlite3
 import pandas as pd
