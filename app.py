@@ -130,37 +130,46 @@ elif menu == '細項管理':
     if not cmap:
         st.warning('請先到「類別管理」建立類別')
     else:
-        sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
-        if sel_cat!='請選擇':
+        sel_cat = st.selectbox('選擇類別', ['請選擇'] + list(cmap.keys()))
+        if sel_cat != '請選擇':
             cid = cmap[sel_cat]
-            items = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
-            imap = dict(zip(items['品項名稱'],items['品項編號']))
-            sel_item = st.selectbox('選擇品項', ['請選擇']+list(imap.keys()))
-            if sel_item!='請選擇':
+            items = pd.read_sql(
+                'SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?',
+                conn, params=(cid,)
+            )
+            imap = dict(zip(items['品項名稱'], items['品項編號']))
+            sel_item = st.selectbox('選擇品項', ['請選擇'] + list(imap.keys()))
+            if sel_item != '請選擇':
                 iid = imap[sel_item]
-                subs = pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
-                sub_map = dict(zip(subs['細項名稱'],subs['細項編號']))
+                subs = pd.read_sql(
+                    'SELECT 細項編號, 細項名稱 FROM 細項 WHERE 品項編號=?',
+                    conn, params=(iid,)
+                )
+                sub_map = dict(zip(subs['細項名稱'], subs['細項編號']))
                 st.table(subs.rename(columns={'細項編號':'編號','細項名稱':'名稱'}))
-                sel_sub = st.selectbox('選擇細項或新增', ['新增細項']+list(sub_map.keys()))
-                if sel_sub=='新增細項':
+                sel_sub = st.selectbox('選擇細項或新增', ['新增細項'] + list(sub_map.keys()))
+                if sel_sub == '新增細項':
                     with st.form('form_new_sub'):
                         new_name = st.text_input('細項名稱')
                         if st.form_submit_button('新增') and new_name:
-                            新增('細項',['品項編號','細項名稱'],[iid,new_name])
+                            新增('細項', ['品項編號','細項名稱'], [iid, new_name])
                             st.experimental_rerun()
                 else:
                     sid = sub_map[sel_sub]
                     with st.form('form_edit_sub'):
-                        st.write(f'編輯細項：{sel_sub}')
-                        qty_str = st.text_input('初始數量 (留空不設定)')
-                        price_str = st.text_input('初始單價 (留空不設定)')
-                        date_str = st.text_input('初始日期 YYYY-MM-DD (留空=今日)')
-                        del_confirm = st.checkbox('刪除此細項')
-                        if st.form_submit_button('執行'):
-                            if del_confirm:
-                                刪除('細項','細項編號',sid)
-                                st.success(f'已刪除細項：{sel_sub}')
-                                st.experimental_rerun()
+                        st.subheader(f'編輯細項：{sel_sub}')
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            qty_str = st.text_input('初始數量 (留空不設定)')
+                            price_str = st.text_input('初始單價 (留空不設定)')
+                        with col2:
+                            date_str = st.text_input('初始日期 YYYY-MM-DD (留空=今日)')
+                            delete = st.button('刪除此細項', key='del_sub')
+                        if delete:
+                            刪除('細項', '細項編號', sid)
+                            st.success(f'已刪除細項：{sel_sub}')
+                            st.experimental_rerun()
+                        if st.form_submit_button('儲存變更'):
                             qty = int(qty_str) if qty_str.isdigit() else None
                             try:
                                 price = float(price_str) if price_str else None
@@ -168,7 +177,7 @@ elif menu == '細項管理':
                                 price = None
                             if date_str:
                                 try:
-                                    date = datetime.strptime(date_str,'%Y-%m-%d').strftime('%Y-%m-%d')
+                                    date = datetime.strptime(date_str, '%Y-%m-%d').strftime('%Y-%m-%d')
                                 except:
                                     st.warning('日期格式錯誤，使用今日')
                                     date = datetime.now().strftime('%Y-%m-%d')
@@ -177,9 +186,10 @@ elif menu == '細項管理':
                             if qty is not None or price is not None:
                                 use_qty = qty or 0
                                 use_price = price or 0.0
-                                total = use_qty*use_price
-                                新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],[cid,iid,sid,use_qty,use_price,total,date])
-                                st.success('初始庫存已儲存')
+                                total = use_qty * use_price
+                                新增('進貨', ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                                      [cid, iid, sid, use_qty, use_price, total, date])
+                                st.success('初始庫存已更新')
 
 # 進貨與銷售
 elif menu in ['進貨','銷售']:
