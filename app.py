@@ -134,7 +134,7 @@ elif menu=='進貨':
     with tab1:
         st.write('請使用以下範例 CSV 進行批次匯入：')
         sample_csv = """類別編號,品項編號,細項編號,數量,單價,日期
-1,1,1,10,5.0,2025-07-16"""
+1,1,1,10,5.0,2025-07-16"""'
         st.download_button('下載進貨範例檔', sample_csv, file_name='purchase_sample.csv', mime='text/csv')
     # 手動記錄
     with tab2:
@@ -189,8 +189,8 @@ elif menu=='銷售':
     # 範例檔下載
     with tab1:
         st.write('請使用以下範例 CSV 進行批次匯入：')
-        sample_csv = """類別編號,品項編號,細項編號,數量,單價,日期
-1,1,1,10,5.0,2025-07-16"""
+        sample_csv = '類別編號,品項編號,細項編號,數量,單價,日期
+1,1,1,5,8.0,2025-07-16'
         st.download_button('下載銷售範例檔', sample_csv, file_name='sales_sample.csv', mime='text/csv')
     # 手動記錄
     with tab2:
