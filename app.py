@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(layout="wide")
 import sqlite3
 import pandas as pd
 from datetime import datetime
