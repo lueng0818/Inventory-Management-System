@@ -124,7 +124,7 @@ elif menu=='細項管理':
                             if st.form_submit_button('更新初始'):
                                 更新('進貨','紀錄ID',rid,'數量',nq)
                                 更新('進貨','紀錄ID',rid,'總價',nq*op)
-                                st.success('已更新初始數量'); st.experimental_rerun()
+                                st.success('已更新初始數量')
 
 # 進貨管理
 elif menu=='進貨':
