@@ -186,6 +186,23 @@ elif menu == '細項管理':
                                     更新('進貨','紀錄ID',rid,'數量',new_q)
                                     更新('進貨','紀錄ID',rid,'總價',new_total)
                                     st.success(f'已更新初始庫存數量為 {new_q}')
+                            # 顯示儀表板中該細項最新統計
+                            df_p = pd.read_sql('SELECT * FROM 進貨', conn)
+                            df_s = pd.read_sql('SELECT * FROM 銷售', conn)
+                            df_c = 查詢('類別')
+                            df_i = 查詢('品項')
+                            df_su = 查詢('細項')
+                            gp = df_p.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+                            gs = df_s.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+                            summary = pd.merge(
+                                gp.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(進貨數量=('數量','sum'), 進貨支出=('總價','sum')),
+                                gs.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(銷售數量=('數量','sum'), 銷售收入=('總價','sum')),
+                                on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
+                            summary['庫存數量'] = summary['進貨數量'] - summary['銷售數量']
+                            st.subheader('更新後該細項統計')
+                            st.table(summary[summary['細項名稱']==sel_action][[
+                                '類別名稱','品項名稱','細項名稱','進貨數量','進貨支出','銷售數量','銷售收入','庫存數量'
+                            ]])
                                     
 
 # 進貨管理
