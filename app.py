@@ -171,15 +171,49 @@ elif menu=='日期查詢':
 # 儀表板
 elif menu=='儀表板':
     st.header('📊 庫存儀表板')
-    dfp=pd.read_sql('SELECT * FROM 進貨',conn); dfs=pd.read_sql('SELECT * FROM 銷售',conn)
-    dfc=查詢('類別'); dfi=查詢('品項'); dfsu=查詢('細項')
-    gp=dfp.merge(dfc,on='類別編號').merge(dfi,on='品項編號').merge(dfsu,on='細項編號')
-    gs=dfs.merge(dfc,on='類別編號').merge(dfi,on='品項編號').merge(dfsu,on='細項編號')
-    sum_p=gp.groupby(['類別名稱','品項名稱','細項名稱'],as_index=False).agg(進貨數量=('數量','sum'),進貨支出=('總價','sum'))
-    sum_s=gs.groupby([...],as_index=False).agg(銷售數量=('數量','sum'),銷售收入=('總價','sum'))
-    df=pd.merge(sum_p,sum_s,on=['類別名稱','品項名稱','細項名稱'],how='outer').fillna(0)
-    df['庫存']=df['進貨數量']-df['銷售數量']
-    df['平均進貨單價']=df.apply(lambda r:r['進貨支出']/r['進貨數量'] if r['進貨數量']>0 else 0,axis=1)
-    df['平均銷售單價']=df.apply(lambda r:r['銷售收入']/r['銷售數量'] if r['銷售數量']>0 else 0,axis=1)
-    st.dataframe(df,use_container_width=True)
-    st.metric('進貨',df['進貨支出'].sum()); st.metric('銷售',df['銷售收入'].sum()); st.metric('庫存價值',(df['庫存']*df['平均進貨單價']).sum())
+    # 讀取並合併
+    dfp = pd.read_sql('SELECT * FROM 進貨', conn)
+    dfs = pd.read_sql('SELECT * FROM 銷售', conn)
+    dfc = 查詢('類別'); dfi = 查詢('品項'); dfsu = 查詢('細項')
+    merged_p = dfp.merge(dfc, on='類別編號').merge(dfi, on='品項編號').merge(dfsu, on='細項編號')
+    merged_s = dfs.merge(dfc, on='類別編號').merge(dfi, on='品項編號').merge(dfsu, on='細項編號')
+    sum_p = merged_p.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(
+        進貨數量=('數量','sum'), 進貨支出=('總價','sum')
+    )
+    sum_s = merged_s.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(
+        銷售數量=('數量','sum'), 銷售收入=('總價','sum')
+    )
+    # outer merge on common keys
+    summary = pd.merge(
+        sum_p, sum_s,
+        on=['類別名稱','品項名稱','細項名稱'],
+        how='outer'
+    ).fillna(0)
+    summary['庫存數量'] = summary['進貨數量'] - summary['銷售數量']
+    summary['平均進貨單價'] = summary.apply(
+        lambda r: r['進貨支出']/r['進貨數量'] if r['進貨數量']>0 else 0, axis=1
+    )
+    summary['平均銷售單價'] = summary.apply(
+        lambda r: r['銷售收入']/r['銷售數量'] if r['銷售數量']>0 else 0, axis=1
+    )
+    summary['庫存價值'] = summary['庫存數量'] * summary['平均進貨單價']
+    # 篩選器
+    sel_cat = st.selectbox('篩選類別', ['全部'] + summary['類別名稱'].unique().tolist())
+    if sel_cat!='全部': summary = summary[summary['類別名稱']==sel_cat]
+    sel_item = st.selectbox('篩選品項', ['全部'] + summary['品項名稱'].unique().tolist())
+    if sel_item!='全部': summary = summary[summary['品項名稱']==sel_item]
+    sel_sub = st.selectbox('篩選細項', ['全部'] + summary['細項名稱'].unique().tolist())
+    if sel_sub!='全部': summary = summary[summary['細項名稱']==sel_sub]
+    # 顯示
+    st.dataframe(
+        summary[[
+            '類別名稱','品項名稱','細項名稱',
+            '進貨數量','平均進貨單價','進貨支出',
+            '銷售數量','平均銷售單價','銷售收入',
+            '庫存數量','庫存價值'
+        ]], use_container_width=True
+    )
+    # 全局指標
+    st.metric('總進貨支出', f"{summary['進貨支出'].sum():.2f}")
+    st.metric('總銷售收入', f"{summary['銷售收入'].sum():.2f}")
+    st.metric('總庫存價值', f"{summary['庫存價值'].sum():.2f}")
