@@ -239,7 +239,7 @@ elif menu == '進貨':
     uploaded = st.file_uploader('', type='csv', key='up_purchase')
     if uploaded:
         df = pd.read_csv(uploaded)
-        # --- 欄位檢查 ---
+        # 1. 欄位檢查
         needed = ['類別名稱','品項名稱','細項名稱','數量','單價','日期']
         missing = [col for col in needed if col not in df.columns]
         if missing:
@@ -247,29 +247,65 @@ elif menu == '進貨':
         else:
             cmap, imap, smap = 取得對映('類別'), {}, {}
             for idx, row in df.iterrows():
-                # 之後的處理跟原本一樣
-                raw_qty, raw_pr = row['數量'], row['單價']
-                qty_str = str(raw_qty).strip()
-                pr_str  = str(raw_pr).strip()
+                # 2. 安全取值
+                cat_name = str(row.get('類別名稱','')).strip()
+                item_name= str(row.get('品項名稱','')).strip()
+                sub_name = str(row.get('細項名稱','')).strip()
+                raw_qty   = row.get('數量', None)
+                raw_pr    = row.get('單價', None)
+                date      = row.get('日期', None)
+
+                # 3. 數值轉換
                 try:
-                    qty = float(qty_str)
+                    qty = float(str(raw_qty).strip())
                 except:
                     st.error(f'進貨匯入 第{idx+1}列 數量格式錯誤：{raw_qty}')
                     continue
                 try:
-                    pr = float(pr_str)
+                    pr  = float(str(raw_pr).strip())
                 except:
                     st.error(f'進貨匯入 第{idx+1}列 單價格式錯誤：{raw_pr}')
                     continue
 
-                date = row['日期']
-                cat_name = row['類別名稱']
-                cid  = cmap.get(cat_name)
+                # 4. 類別對映
+                cid = cmap.get(cat_name)
                 if cid is None:
                     st.error(f'進貨匯入 第{idx+1}列 找不到類別：{cat_name}')
                     continue
 
-                # …後續品項/細項對映、資料寫入就不重複貼了…
+                # 5. 品項對映
+                key_item = (cid, item_name)
+                if key_item not in imap:
+                    res = conn.execute(
+                        'SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?',
+                        key_item
+                    ).fetchone()
+                    imap[key_item] = res[0] if res else None
+                iid = imap[key_item]
+                if iid is None:
+                    st.error(f'進貨匯入 第{idx+1}列 找不到品項：{item_name}')
+                    continue
+
+                # 6. 細項對映
+                key_sub = (iid, sub_name)
+                if key_sub not in smap:
+                    res = conn.execute(
+                        'SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?',
+                        key_sub
+                    ).fetchone()
+                    smap[key_sub] = res[0] if res else None
+                sid = smap[key_sub]
+                if sid is None:
+                    st.error(f'進貨匯入 第{idx+1}列 找不到細項：{sub_name}')
+                    continue
+
+                # 7. 寫入資料庫
+                total = qty * pr
+                新增(
+                    '進貨',
+                    ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                    [cid, iid, sid, qty, pr, total, date]
+                )
             st.success('進貨批次匯入完成')
 
     # --- 手動記錄 ---
