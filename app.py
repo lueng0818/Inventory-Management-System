@@ -85,29 +85,62 @@ menu = st.sidebar.radio("功能選單", [
 # 類別管理
 if menu == '類別管理':
     st.header('⚙️ 類別管理')
+    # 批次匯入
+    st.subheader('📥 批次匯入類別')
+    up_cat = st.file_uploader('上傳 CSV（欄位：類別名稱）', type='csv', key='up_cat')
+    if up_cat:
+        df_cat = pd.read_csv(up_cat)
+        cmap_count = 0
+        for idx, row in df_cat.iterrows():
+            name = str(row.get('類別名稱','')).strip()
+            if name:
+                try:
+                    新增('類別',['類別名稱'],[name])
+                    cmap_count += 1
+                except sqlite3.IntegrityError:
+                    pass
+        st.success(f'已匯入 {cmap_count} 個類別')
+    # 顯示與表單
     df = 查詢('類別').rename(columns={'類別編號':'編號','類別名稱':'名稱'})
     st.table(df)
     with st.form('form_cat'):
         new = st.text_input('新增類別')
         d   = st.text_input('刪除類別編號')
         if st.form_submit_button('執行'):
-            if new:
-                新增('類別',['類別名稱'],[new])
-            if d.isdigit():
-                刪除('類別','類別編號',int(d))
-            st.experimental_rerun()
+            if new: 新增('類別',['類別名稱'],[new])
+            if d.isdigit(): 刪除('類別','類別編號',int(d))
+            st.success('類別已更新')
 
 # 品項管理
 elif menu == '品項管理':
     st.header('⚙️ 品項管理')
+    # 批次匯入
+    st.subheader('📥 批次匯入品項')
+    up_item = st.file_uploader('上傳 CSV（欄位：類別名稱, 品項名稱）', type='csv', key='up_item')
+    if up_item:
+        df_item = pd.read_csv(up_item)
+        cmap = 取得對映('類別')
+        cnt = 0
+        for idx, row in df_item.iterrows():
+            cat = str(row.get('類別名稱','')).strip()
+            item= str(row.get('品項名稱','')).strip()
+            cid = cmap.get(cat)
+            if cid and item:
+                try:
+                    新增('品項',['類別編號','品項名稱'],[cid,item])
+                    cnt += 1
+                except sqlite3.IntegrityError:
+                    pass
+        st.success(f'已匯入 {cnt} 個品項')
+    # 顯示與表單
     cmap = 取得對映('類別')
     if not cmap:
-        st.warning('請先到「類別管理」新增類別')
+        st.warning('請先在「類別管理」建立類別')
     else:
-        sel = st.selectbox('選擇類別', ['請選擇'] + list(cmap.keys()))
-        if sel != '請選擇':
+        sel = st.selectbox('選擇類別',['請選擇']+list(cmap.keys()))
+        if sel!='請選擇':
             cid = cmap[sel]
-            df  = pd.read_sql(
+            df = pd.read_sql(
                 'SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',
                 conn, params=(cid,)
             ).rename(columns={'品項編號':'編號','品項名稱':'名稱'})
@@ -116,46 +149,69 @@ elif menu == '品項管理':
                 new = st.text_input('新增品項')
                 d   = st.text_input('刪除品項編號')
                 if st.form_submit_button('執行'):
-                    if new:
-                        新增('品項',['類別編號','品項名稱'],[cid,new])
-                    if d.isdigit():
-                        刪除('品項','品項編號',int(d))
-                    st.experimental_rerun()
+                    if new: 新增('品項',['類別編號','品項名稱'],[cid,new])
+                    if d.isdigit(): 刪除('品項','品項編號',int(d))
+                    st.success('品項已更新')
 
 # 細項管理
 elif menu == '細項管理':
     st.header('⚙️ 細項管理')
+    # 批次匯入
+    st.subheader('📥 批次匯入細項')
+    up_sub = st.file_uploader('上傳 CSV（欄位：類別名稱, 品項名稱, 細項名稱）', type='csv', key='up_sub')
+    if up_sub:
+        df_sub = pd.read_csv(up_sub)
+        cmap = 取得對映('類別')
+        cnt = 0
+        for idx, row in df_sub.iterrows():
+            cat = str(row.get('類別名稱','')).strip()
+            itm = str(row.get('品項名稱','')).strip()
+            sub = str(row.get('細項名稱','')).strip()
+            cid = cmap.get(cat)
+            if not (cid and itm and sub): continue
+            r = conn.execute(
+                'SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?',
+                (cid,itm)
+            ).fetchone()
+            if not r: continue
+            iid = r[0]
+            try:
+                新增('細項',['品項編號','細項名稱'],[iid,sub])
+                cnt += 1
+            except sqlite3.IntegrityError:
+                pass
+        st.success(f'已匯入 {cnt} 個細項')
+    # 顯示與操作
     cmap = 取得對映('類別')
-    if not cmap:
-        st.warning('請先到「類別管理」新增類別')
+    if not cmap: st.warning('請先在「類別管理」建立類別')
     else:
-        selc = st.selectbox('選擇類別', ['請選擇'] + list(cmap.keys()))
-        if selc != '請選擇':
-            cid = cmap[selc]
-            items = pd.read_sql(
+        selc=st.selectbox('選擇類別',['請選擇']+list(cmap.keys()))
+        if selc!='請選擇':
+            cid=cmap[selc]
+            items=pd.read_sql(
                 'SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',
                 conn, params=(cid,)
             )
-            imap = dict(zip(items['品項名稱'], items['品項編號']))
-            selp = st.selectbox('選擇品項', ['請選擇'] + list(imap.keys()))
-            if selp != '請選擇':
-                iid = imap[selp]
-                subs = pd.read_sql(
+            imap=dict(zip(items['品項名稱'], items['品項編號']))
+            selp=st.selectbox('選擇品項',['請選擇']+list(imap.keys()))
+            if selp!='請選擇':
+                iid=imap[selp]
+                subs=pd.read_sql(
                     'SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?',
                     conn, params=(iid,)
                 )
-                smap = dict(zip(subs['細項名稱'], subs['細項編號']))
-                act  = st.selectbox('操作', ['新增','刪除'] + list(smap.keys()))
-                if act == '新增':
-                    name = st.text_input('新細項名稱')
+                smap=dict(zip(subs['細項名稱'], subs['細項編號']))
+                act=st.selectbox('操作',['新增','刪除']+list(smap.keys()))
+                if act=='新增':
+                    name=st.text_input('細項名稱')
                     if st.button('新增細項') and name:
                         新增('細項',['品項編號','細項名稱'],[iid,name])
-                        st.experimental_rerun()
-                elif act == '刪除':
-                    dn = st.selectbox('刪除細項', ['請選擇'] + list(smap.keys()))
+                        st.success('細項已新增')
+                elif act=='刪除':
+                    dn=st.selectbox('刪除細項',['請選擇']+list(smap.keys()))
                     if dn!='請選擇' and st.button('刪除細項'):
                         刪除('細項','細項編號',smap[dn])
-                        st.experimental_rerun()
+                        st.success('細項已刪除')
 
 # 進貨管理
 elif menu == '進貨':
