@@ -100,6 +100,11 @@ if menu == '類別管理':
                 except sqlite3.IntegrityError:
                     pass
         st.success(f'已匯入 {cmap_count} 個類別')
+    # 全部刪除類別
+    if st.button('刪除所有類別', key='btn_delete_all_cat'):
+        c.execute("DELETE FROM 類別")
+        conn.commit()
+        st.success('已刪除所有類別')
     # 顯示與表單
     df = 查詢('類別').rename(columns={'類別編號':'編號','類別名稱':'名稱'})
     st.table(df)
@@ -132,6 +137,11 @@ elif menu == '品項管理':
                 except sqlite3.IntegrityError:
                     pass
         st.success(f'已匯入 {cnt} 個品項')
+     # 全部刪除品項
+    if st.button('刪除所有品項', key='btn_delete_all_item'):
+        c.execute("DELETE FROM 品項")
+        conn.commit()
+        st.success('已刪除所有品項')
     # 顯示與表單
     cmap = 取得對映('類別')
     if not cmap:
@@ -181,6 +191,11 @@ elif menu == '細項管理':
             except sqlite3.IntegrityError:
                 pass
         st.success(f'已匯入 {cnt} 個細項')
+    # 全部刪除細項
+    if st.button('刪除所有細項', key='btn_delete_all_sub'):
+        c.execute("DELETE FROM 細項")
+        conn.commit()
+        st.success('已刪除所有細項')
     # 顯示與操作
     cmap = 取得對映('類別')
     if not cmap: st.warning('請先在「類別管理」建立類別')
