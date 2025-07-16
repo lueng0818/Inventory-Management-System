@@ -100,7 +100,7 @@ if menu == '類別管理':
         if st.form_submit_button('執行'):
             if new_cat: 新增('類別',['類別名稱'],[new_cat])
             if del_cat.isdigit(): 刪除('類別','類別編號',int(del_cat))
-            st.experimental_rerun()
+            
 
 # 品項管理
 elif menu == '品項管理':
@@ -120,7 +120,7 @@ elif menu == '品項管理':
                 if st.form_submit_button('執行'):
                     if new_item: 新增('品項',['類別編號','品項名稱'],[cid,new_item])
                     if del_item.isdigit(): 刪除('品項','品項編號',int(del_item))
-                    st.experimental_rerun()
+                    
 
 # 細項管理
 elif menu == '細項管理':
@@ -146,13 +146,13 @@ elif menu == '細項管理':
                         name=st.text_input('新細項名稱')
                         if st.form_submit_button('新增') and name:
                             新增('細項',['品項編號','細項名稱'],[iid,name])
-                            st.experimental_rerun()
+                            
                 elif sel_action=='刪除細項':
                     del_name=st.selectbox('選擇刪除',['請選擇']+list(sub_map.keys()))
                     if del_name!='請選擇' and st.button('確認刪除'):
                         刪除('細項','細項編號',sub_map[del_name])
                         st.success(f'已刪除細項：{del_name}')
-                        st.experimental_rerun()
+                        
                 else:
                     sid=sub_map[sel_action]
                     # 初始庫存新增表單
@@ -186,7 +186,7 @@ elif menu == '細項管理':
                                     更新('進貨','紀錄ID',rid,'數量',new_q)
                                     更新('進貨','紀錄ID',rid,'總價',new_total)
                                     st.success(f'已更新初始庫存數量為 {new_q}')
-                                    st.experimental_rerun()
+                                    
 
 # 進貨管理
 elif menu=='進貨':
@@ -209,7 +209,7 @@ elif menu=='進貨':
                 更新('進貨','紀錄ID',rec_id,'數量',new_qty)
                 更新('進貨','紀錄ID',rec_id,'總價',new_total)
                 st.success(f'已更新紀錄 {rec_id} 數量為 {new_qty}')
-                st.experimental_rerun()
+                
 
 # 銷售管理
 elif menu=='銷售':
@@ -232,7 +232,7 @@ elif menu=='銷售':
                 更新('銷售','紀錄ID',rec_id,'數量',new_qty)
                 更新('銷售','紀錄ID',rec_id,'總價',new_total)
                 st.success(f'已更新銷售紀錄 {rec_id} 數量為 {new_qty}')
-                st.experimental_rerun()
+                
 
 # 日期查詢
 elif menu=='日期查詢':
