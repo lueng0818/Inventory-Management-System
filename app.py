@@ -357,9 +357,15 @@ elif menu == '進貨':
                 更新('進貨', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
             st.success(f'已更新進貨紀錄 {rec}')
 
-        if st.button('刪除進貨紀錄', key='btn_delete_pur'):
+         if st.button('刪除進貨紀錄', key='btn_delete_purchase'):
             刪除('進貨', '紀錄ID', rec)
             st.success(f'已刪除進貨紀錄 {rec}')
+
+        # 一键清空所有进货
+        if st.button('刪除所有進貨紀錄', key='btn_delete_all_purchase'):
+            c.execute("DELETE FROM 進貨")
+            conn.commit()
+            st.success('所有進貨紀錄已刪除')
 
 # 銷售管理
 elif menu == '銷售':
@@ -503,9 +509,15 @@ elif menu == '銷售':
                 更新('銷售', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
             st.success(f'已更新銷售紀錄 {rec}')
 
-        if st.button('刪除銷售紀錄', key='btn_del_sales'):
+        if st.button('刪除銷售紀錄', key='btn_delete_sale'):
             刪除('銷售', '紀錄ID', rec)
             st.success(f'已刪除銷售紀錄 {rec}')
+
+        # 一键清空所有销售
+        if st.button('刪除所有銷售紀錄', key='btn_delete_all_sales'):
+            c.execute("DELETE FROM 銷售")
+            conn.commit()
+            st.success('所有銷售紀錄已刪除')
 
 # 日期查詢
 elif menu == '日期查詢':
