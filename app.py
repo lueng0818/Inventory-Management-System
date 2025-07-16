@@ -145,36 +145,46 @@ elif menu == '細項管理':
                     with st.form('form_new'):
                         name=st.text_input('新細項名稱')
                         if st.form_submit_button('新增') and name:
-                            新增('細項',['品項編號','細項名稱'],[iid,name]);st.experimental_rerun()
+                            新增('細項',['品項編號','細項名稱'],[iid,name])
+                            st.experimental_rerun()
                 elif sel_action=='刪除細項':
                     del_name=st.selectbox('選擇刪除',['請選擇']+list(sub_map.keys()))
                     if del_name!='請選擇' and st.button('確認刪除'):
-                        刪除('細項','細項編號',sub_map[del_name]);st.success(f'已刪除細項：{del_name}');st.experimental_rerun()
+                        刪除('細項','細項編號',sub_map[del_name])
+                        st.success(f'已刪除細項：{del_name}')
+                        st.experimental_rerun()
                 else:
                     sid=sub_map[sel_action]
-                    with st.form('form_init'):
-                        qty=st.text_input('初始數量')
-                        price=st.text_input('初始單價')
-                        date_str=st.text_input('初始日期 YYYY-MM-DD')
-                        if st.form_submit_button('儲存初始庫存'):
-                            q=int(qty) if qty.isdigit() else 0
-                            p=float(price) if price.replace('.','',1).isdigit() else 0.0
-                            try:
-                                d=datetime.strptime(date_str,'%Y-%m-%d').strftime('%Y-%m-%d') if date_str else datetime.now().strftime('%Y-%m-%d')
-                            except:
-                                d=datetime.now().strftime('%Y-%m-%d')
-                            rec=新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],[cid,iid,sid,q,p,q*p,d])
-                            st.success('初始庫存已儲存')
-                            # 編輯初始庫存
-                            row=conn.execute('SELECT 紀錄ID,數量,單價,日期 FROM 進貨 WHERE 紀錄ID=?',(rec,)).fetchone()
-                            if row:
-                                rid,old_q,old_p,old_d=row
-                                st.info(f'紀錄ID={rid},數量={old_q},單價={old_p},日期={old_d}')
-                                new_q=st.number_input('修改數量',min_value=0,value=old_q)
-                                if st.button('更新初始數量'):
-                                    new_t=new_q*old_p
+                    # 初始庫存新增表單
+                    if 'init_saved' not in st.session_state:
+                        with st.form('form_init_save'):
+                            qty=st.text_input('初始數量')
+                            price=st.text_input('初始單價')
+                            date_str=st.text_input('初始日期 YYYY-MM-DD')
+                            if st.form_submit_button('儲存初始庫存'):
+                                q=int(qty) if qty.isdigit() else 0
+                                p=float(price) if price.replace('.','',1).isdigit() else 0.0
+                                try:
+                                    d=datetime.strptime(date_str,'%Y-%m-%d').strftime('%Y-%m-%d') if date_str else datetime.now().strftime('%Y-%m-%d')
+                                except:
+                                    d=datetime.now().strftime('%Y-%m-%d')
+                                rec=新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],[cid,iid,sid,q,p,q*p,d])
+                                st.success('初始庫存已儲存')
+                                st.session_state.init_saved = True
+                                st.session_state.init_rec = rec
+                    # 若已儲存，提供更新表單
+                    if st.session_state.get('init_saved'):
+                        rec_id = st.session_state.init_rec
+                        row = conn.execute('SELECT 紀錄ID,數量,單價,日期 FROM 進貨 WHERE 紀錄ID=?',(rec_id,)).fetchone()
+                        if row:
+                            rid,old_q,old_p,old_d = row
+                            st.info(f'當前初始庫存: 紀錄ID={rid}, 數量={old_q}, 單價={old_p}, 日期={old_d}')
+                            with st.form('form_init_update'):
+                                new_q = st.number_input('修改數量',min_value=0,value=old_q)
+                                if st.form_submit_button('更新初始數量'):
+                                    new_total = new_q * old_p
                                     更新('進貨','紀錄ID',rid,'數量',new_q)
-                                    更新('進貨','紀錄ID',rid,'總價',new_t)
+                                    更新('進貨','紀錄ID',rid,'總價',new_total)
                                     st.success(f'已更新初始庫存數量為 {new_q}')
                                     st.experimental_rerun()
 
