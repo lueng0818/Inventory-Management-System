@@ -6,6 +6,7 @@ from datetime import datetime
 # --- 資料庫初始化 ---
 conn = sqlite3.connect('database.db', check_same_thread=False)
 c = conn.cursor()
+
 # 建立主表
 c.execute('''
 CREATE TABLE IF NOT EXISTS 類別 (
@@ -79,15 +80,16 @@ def 取得對映(table: str) -> dict:
 
 # --- UI 分支 ---
 st.sidebar.title("庫存管理系統")
-menu = st.sidebar.radio("功能選單", ['類別管理','品項管理','細項管理','進貨','銷售','儀表板'])
+menu = st.sidebar.radio("功能選單", ['類別管理', '品項管理', '細項管理', '進貨', '銷售', '儀表板'])
 
+# 類別管理
 if menu == '類別管理':
     st.header('⚙️ 類別管理')
     df = 查詢('類別').rename(columns={'類別編號':'編號','類別名稱':'名稱'})
     st.table(df)
     with st.form('form_cat'):
         new_cat = st.text_input('新增類別')
-        del_cat = st.text_input('刪除編號')
+        del_cat = st.text_input('刪除類別編號')
         if st.form_submit_button('執行'):
             if new_cat:
                 新增('類別',['類別名稱'],[new_cat])
@@ -95,6 +97,7 @@ if menu == '類別管理':
                 刪除('類別','類別編號',int(del_cat))
             st.experimental_rerun()
 
+# 品項管理
 elif menu == '品項管理':
     st.header('⚙️ 品項管理')
     cmap = 取得對映('類別')
@@ -102,13 +105,13 @@ elif menu == '品項管理':
         st.warning('請先到「類別管理」建立類別')
     else:
         sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
-        if sel_cat != '請選擇':
+        if sel_cat!='請選擇':
             cid = cmap[sel_cat]
-            df = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',conn,params=(cid,))
-            st.table(df.rename(columns={'品項編號':'編號','品項名稱':'名稱'}))
+            df = pd.read_sql('SELECT 品項編號,細項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,)).rename(columns={'品項編號':'編號','品項名稱':'名稱'})
+            st.table(df)
             with st.form('form_item'):
                 new_item = st.text_input('新增品項')
-                del_item = st.text_input('刪除編號')
+                del_item = st.text_input('刪除品項編號')
                 if st.form_submit_button('執行'):
                     if new_item:
                         新增('品項',['類別編號','品項名稱'],[cid,new_item])
@@ -116,6 +119,7 @@ elif menu == '品項管理':
                         刪除('品項','品項編號',int(del_item))
                     st.experimental_rerun()
 
+# 細項管理
 elif menu == '細項管理':
     st.header('⚙️ 細項管理')
     cmap = 取得對映('類別')
@@ -125,12 +129,12 @@ elif menu == '細項管理':
         sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
         if sel_cat!='請選擇':
             cid = cmap[sel_cat]
-            items = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',conn,params=(cid,))
+            items = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
             imap = dict(zip(items['品項名稱'],items['品項編號']))
             sel_item = st.selectbox('選擇品項', ['請選擇']+list(imap.keys()))
             if sel_item!='請選擇':
                 iid = imap[sel_item]
-                subs = pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?',conn,params=(iid,))
+                subs = pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
                 sub_map = dict(zip(subs['細項名稱'],subs['細項編號']))
                 st.table(subs.rename(columns={'細項編號':'編號','細項名稱':'名稱'}))
                 sel_sub = st.selectbox('選擇細項或新增', ['新增細項']+list(sub_map.keys()))
@@ -142,11 +146,17 @@ elif menu == '細項管理':
                             st.experimental_rerun()
                 else:
                     sid = sub_map[sel_sub]
-                    with st.form('form_init'):
+                    with st.form('form_edit_sub'):
+                        st.write(f'編輯細項：{sel_sub}')
                         qty_str = st.text_input('初始數量 (留空不設定)')
                         price_str = st.text_input('初始單價 (留空不設定)')
                         date_str = st.text_input('初始日期 YYYY-MM-DD (留空=今日)')
-                        if st.form_submit_button('儲存初始庫存'):
+                        del_confirm = st.checkbox('刪除此細項')
+                        if st.form_submit_button('執行'):
+                            if del_confirm:
+                                刪除('細項','細項編號',sid)
+                                st.success(f'已刪除細項：{sel_sub}')
+                                st.experimental_rerun()
                             qty = int(qty_str) if qty_str.isdigit() else None
                             try:
                                 price = float(price_str) if price_str else None
@@ -161,32 +171,32 @@ elif menu == '細項管理':
                             else:
                                 date = datetime.now().strftime('%Y-%m-%d')
                             if qty is not None or price is not None:
-                                use_qty = qty if qty is not None else 0
-                                use_price = price if price is not None else 0.0
+                                use_qty = qty or 0
+                                use_price = price or 0.0
                                 total = use_qty*use_price
-                                新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
-                                      [cid,iid,sid,use_qty,use_price,total,date])
+                                新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],[cid,iid,sid,use_qty,use_price,total,date])
                                 st.success('初始庫存已儲存')
 
+# 進貨與銷售
 elif menu in ['進貨','銷售']:
-    title = '進貨管理' if menu=='進貨' else '銷售管理'
-    st.header(f'➕ {title}')
+    title = '進貨' if menu=='進貨' else '銷售'
+    st.header(f'➕ {title}管理')
     tab1,tab2 = st.tabs(['批次匯入','手動記錄'])
     with tab1:
         st.info('批次匯入請使用範例檔')
     with tab2:
         cmap = 取得對映('類別')
-        sel_cat = st.selectbox('選擇類別',['請選擇']+list(cmap.keys()))
+        sel_cat = st.selectbox('選擇類別', ['請選擇']+list(cmap.keys()))
         if sel_cat!='請選擇':
             cid=cmap[sel_cat]
-            items=pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',conn,params=(cid,))
+            items=pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
             imap=dict(zip(items['品項名稱'],items['品項編號']))
-            sel_item=st.selectbox('選擇品項',['請選擇']+list(imap.keys()))
+            sel_item=st.selectbox('選擇品項', ['請選擇']+list(imap.keys()))
             if sel_item!='請選擇':
                 iid=imap[sel_item]
-                subs=pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?',conn,params=(iid,))
+                subs=pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
                 smap=dict(zip(subs['細項名稱'],subs['細項編號']))
-                sel_sub=st.selectbox('選擇細項',['請選擇']+list(smap.keys()))
+                sel_sub=st.selectbox('選擇細項', ['請選擇']+list(smap.keys()))
                 if sel_sub!='請選擇':
                     sid=smap[sel_sub]
                     use_today=st.checkbox('自動帶入今日日期',value=True)
@@ -198,6 +208,7 @@ elif menu in ['進貨','銷售']:
                         新增(menu,['類別編號','品項編號','細項編號','數量','單價','總價','日期'],[cid,iid,sid,qty,price,total,date])
                         st.success(f'{title}記錄已儲存')
 
+# 儀表板
 elif menu=='儀表板':
     st.header('📊 庫存儀表板')
     df_p=pd.read_sql('SELECT * FROM 進貨',conn)
