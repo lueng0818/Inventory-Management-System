@@ -144,64 +144,45 @@ elif menu=='進貨':
         if st.button('刪除進貨'):
             刪除('進貨','紀錄ID',rec);st.success('已刪除')
 
-elif menu == '銷售':
+# 銷售管理
+elif menu=='銷售':
     st.header('➕ 銷售管理')
-    tab1, tab2, tab3 = st.tabs(['匯入','手動','編輯'])
-
-    # 編輯/刪除
-    with tab3:
-        df_all = pd.read_sql(
-            '''
-            SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱,
-                   p.數量, p.單價, p.總價, p.日期
+    # 同進貨編輯邏輯
+    df_all=pd.read_sql(df_all := conn.execute('''SELECT p.紀錄ID,c.類別名稱,i.品項名稱,s.細項名稱,p.數量,p.單價,p.總價,p.日期
             FROM 銷售 p
-            JOIN 類別 c ON p.類別編號 = c.類別編號
-            JOIN 品項 i ON p.品項編號 = i.品項編號
-            JOIN 細項 s ON p.細項編號 = s.細項編號
-            ''',
-            conn
-        )
-        st.dataframe(df_all)
-
-        rec = st.number_input('紀錄ID', min_value=1, step=1, key='sr')
-        rec = int(rec)
-
-        row = conn.execute(
-            'SELECT 數量, 單價, 日期 FROM 銷售 WHERE 紀錄ID=?',
-            (rec,)
-        ).fetchone()
-        if row:
-            oq, op, od = row
-        else:
-            oq, op, od = 0.0, 0.0, datetime.now().strftime('%Y-%m-%d')
-
-        nq = st.number_input(
-            '新數量',
-            min_value=0.0,
-            value=float(oq),
-            step=0.1,
-            format='%.1f',
-            key='sell_qty'
-        )
-        upd = st.checkbox('更新日期', key='upd_sell')
-        nd = st.date_input('新日期', value=datetime.strptime(od, '%Y-%m-%d'))
-
-        if st.button('更新銷售', key='btn_upd_sell'):
-            更新('銷售', '紀錄ID', rec, '數量', nq)
-            更新('銷售', '紀錄ID', rec, '總價', nq * op)
-            if upd:
-                更新('銷售', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
-            st.success('已更新銷售紀錄')
-
-        if st.button('刪除銷售', key='btn_del_sell'):
-            刪除('銷售', '紀錄ID', rec)
-            st.success('已刪除銷售紀錄')
+            JOIN 類別 c ON p.類別編號=c.類別編號
+            JOIN 品項 i ON p.品項編號=i.品項編號
+            JOIN 細項 s ON p.細項編號=s.細項編號''').fetchdf(), conn)
+    st.dataframe(df_all)
+    rec=int(st.number_input('ID',1,step=1, key='sr'))
+    row=conn.execute('SELECT 數量,單價,日期 FROM 銷售 WHERE 紀錄ID=?',(rec,)).fetchone()
+    oq,op,od=row if row else (0.0,0.0,datetime.now().strftime('%Y-%m-%d'))
+    nq=st.number_input('新數量',0.0,value=float(oq),step=0.1,format='%.1f', key='sn')
+    ud=st.checkbox('更新日期',key='su')
+    nd=st.date_input('新日期',value=datetime.strptime(od,'%Y-%m-%d'))
+    if st.button('更新銷售', key='btn_upd_sell'):
+    更新('銷售', '紀錄ID', rec, '數量', nq)
+    更新('銷售', '紀錄ID', rec, '總價', nq * op)
+    if ud:
+        更新('銷售', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
+        更新('銷售','紀錄ID',rec,'日期',nd.strftime('%Y-%m-%d'))
+    st.success('已更新銷售紀錄'):
+    更新('銷售','紀錄ID',rec,'數量',nq)
+    更新('銷售','紀錄ID',rec,'總價',nq*op)
+    if ud:
+        更新('銷售','紀錄ID',rec,'日期',nd.strftime('%Y-%m-%d'))
+    st.success('已更新銷售紀錄')
+    if st.button('刪除銷售',key='del_s'): 刪除('銷售','紀錄ID',rec);st.success('已刪除')
 
 # 日期查詢
 elif menu=='日期查詢':
     st.header('📅 日期查詢')
     sd,ed=st.columns(2)
-    with sd: s=st.date_input('起'); with ed: e=st.date_input('迄')
+    col1, col2 = st.columns(2)
+    with col1:
+        s = st.date_input('起始日期')
+    with col2:
+        e = st.date_input('結束日期')
     if s>e: st.error('錯誤日期')
     else:
         dfp=pd.read_sql('SELECT * FROM 進貨',conn); dfs=pd.read_sql('SELECT * FROM 銷售',conn)
