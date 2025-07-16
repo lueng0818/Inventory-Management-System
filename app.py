@@ -199,6 +199,8 @@ elif menu == '細項管理':
                                     updated = summary[summary['細項名稱']==sel_action]
                                     st.subheader('更新後儀表板進貨／銷售數量')
                                     st.table(updated[['類別名稱','品項名稱','細項名稱','進貨數量','銷售數量']])
+                                    # 重新整理以反映儀表板數據
+                                    st.experimental_rerun()
 
 # 進貨管理
 elif menu=='進貨':
