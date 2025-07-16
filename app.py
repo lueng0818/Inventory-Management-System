@@ -254,8 +254,43 @@ elif menu == "銷售":
             except: df = pd.read_csv(up)
             cnt = 批次匯入銷售(df)
             st.success(f"匯入 {cnt} 筆銷售記錄")
-    with tab2:
-        st.info("手動記錄請先於品項/細項管理設定主檔")
+        with tab2:
+        # 手動銷售紀錄
+        cat_map = 取得對映("類別")
+        if not cat_map:
+            st.warning("請先在「類別管理」新增類別")
+        else:
+            sel_cat = st.selectbox("選擇類別", list(cat_map.keys()))
+            cid = cat_map[sel_cat]
+            items = pd.read_sql(
+                "SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?",
+                conn, params=(cid,)
+            )
+            item_map = dict(zip(items["品項名稱"], items["品項編號"]))
+            if not item_map:
+                st.warning("該類別尚無品項，請先在「品項管理」新增")
+            else:
+                sel_item = st.selectbox("選擇品項", list(item_map.keys()))
+                iid = item_map[sel_item]
+                subs = pd.read_sql(
+                    "SELECT 細項編號, 細項名稱 FROM 細項 WHERE 品項編號=?",
+                    conn, params=(iid,)
+                )
+                sub_map = dict(zip(subs["細項名稱"], subs["細項編號"]))
+                if not sub_map:
+                    st.warning("該品項尚無細項，請先在「細項管理」新增")
+                else:
+                    sel_sub = st.selectbox("選擇細項", list(sub_map.keys()))
+                    sid = sub_map[sel_sub]
+                    qty = st.number_input("數量", min_value=1, value=1)
+                    price = st.number_input("單價", min_value=0.0, format="%.2f")
+                    if st.button("儲存銷售"):
+                        新增(
+                            "銷售",
+                            ["類別編號","品項編號","細項編號","數量","單價"],
+                            [cid, iid, sid, qty, price]
+                        )
+                        st.success("銷售記錄已儲存")
 
 elif menu == "儀表板":
     st.header("📊 庫存儀表板")
