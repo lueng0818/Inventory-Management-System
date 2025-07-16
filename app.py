@@ -175,12 +175,43 @@ elif menu == '細項管理':
 # --- 進貨管理 ---
 elif menu == '進貨':
     st.header('➕ 進貨管理')
-    tab1,tab2,tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除紀錄'])
-    # 範例檔
+    tab1, tab2, tab3 = st.tabs(['匯入記錄','手動記錄','編輯/刪除紀錄'])
+    # 匯入記錄
     with tab1:
+        st.write('請上傳 CSV 批次匯入進貨：')
         sample_csv = """類別名稱,品項名稱,細項名稱,數量,單價,日期
 零件類,螺絲,銀珠3mm,10,5.0,2025-07-16"""
         st.download_button('下載進貨範例檔', sample_csv, file_name='purchase_sample.csv', mime='text/csv')
+        uploaded = st.file_uploader('上傳進貨CSV', type=['csv'])
+        if uploaded:
+            df = pd.read_csv(uploaded)
+            cmap = 取得對映('類別')
+            imap = {}
+            smap = {}
+            for _, row in df.iterrows():
+                cat, item, sub, qty, price, date = row
+                cid = cmap.get(cat)
+                if cid is None:
+                    st.error(f'找不到類別：{cat}')
+                    continue
+                if (cid,item) not in imap:
+                    res = conn.execute('SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?', (cid,item)).fetchone()
+                    imap[(cid,item)] = res[0] if res else None
+                iid = imap[(cid,item)]
+                if iid is None:
+                    st.error(f'找不到品項：{item}')
+                    continue
+                if (iid,sub) not in smap:
+                    res = conn.execute('SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?', (iid,sub)).fetchone()
+                    smap[(iid,sub)] = res[0] if res else None
+                sid = smap[(iid,sub)]
+                if sid is None:
+                    st.error(f'找不到細項：{sub}')
+                    continue
+                total = float(qty) * float(price)
+                新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                     [cid,iid,sid,float(qty),float(price),total,date])
+            st.success('批次匯入完成')
     # 手動記錄
     with tab2:
         cmap = 取得對映('類別')
@@ -236,12 +267,43 @@ elif menu == '進貨':
 
 elif menu == '銷售':
     st.header('➕ 銷售管理')
-    tab1,tab2,tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除紀錄'])
-    # 範例檔
+    tab1, tab2, tab3 = st.tabs(['匯入記錄','手動記錄','編輯/刪除紀錄'])
+    # 匯入記錄
     with tab1:
+        st.write('請上傳 CSV 批次匯入銷售：')
         sample_csv = """類別名稱,品項名稱,細項名稱,數量,單價,日期
 零件類,螺絲,銀珠3mm,5,8.0,2025-07-16"""
         st.download_button('下載銷售範例檔', sample_csv, file_name='sales_sample.csv', mime='text/csv')
+        uploaded = st.file_uploader('上傳銷售CSV', type=['csv'])
+        if uploaded:
+            df = pd.read_csv(uploaded)
+            cmap = 取得對映('類別')
+            imap = {}
+            smap = {}
+            for _, row in df.iterrows():
+                cat, item, sub, qty, price, date = row
+                cid = cmap.get(cat)
+                if cid is None:
+                    st.error(f'找不到類別：{cat}')
+                    continue
+                if (cid,item) not in imap:
+                    res = conn.execute('SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?', (cid,item)).fetchone()
+                    imap[(cid,item)] = res[0] if res else None
+                iid = imap[(cid,item)]
+                if iid is None:
+                    st.error(f'找不到品項：{item}')
+                    continue
+                if (iid,sub) not in smap:
+                    res = conn.execute('SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?', (iid,sub)).fetchone()
+                    smap[(iid,sub)] = res[0] if res else None
+                sid = smap[(iid,sub)]
+                if sid is None:
+                    st.error(f'找不到細項：{sub}')
+                    continue
+                total = float(qty) * float(price)
+                新增('銷售',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                     [cid,iid,sid,float(qty),float(price),total,date])
+            st.success('批次匯入完成')
     # 手動記錄
     with tab2:
         cmap = 取得對映('類別')
