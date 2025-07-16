@@ -229,6 +229,7 @@ elif menu=='銷售':
 # 儀表板
 elif menu=='儀表板':
     st.header('📊 庫存儀表板')
+    st.set_page_config(layout="wide")
     # 讀取資料
     df_p = pd.read_sql('SELECT * FROM 進貨', conn)
     df_s = pd.read_sql('SELECT * FROM 銷售', conn)
@@ -257,38 +258,36 @@ elif menu=='儀表板':
                 銷售收入=('總價','sum')
             )
     )
-    # 合併並計算庫存
+    # 合併並計算庫存＆價格
     summary = pd.merge(gp, gs, on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
     summary['庫存數量'] = summary['進貨數量'] - summary['銷售數量']
     summary['平均進貨單價'] = summary.apply(
         lambda row: row['進貨支出']/row['進貨數量'] if row['進貨數量']>0 else 0, axis=1
     )
+    summary['平均銷售單價'] = summary.apply(
+        lambda row: row['銷售收入']/row['銷售數量'] if row['銷售數量']>0 else 0, axis=1
+    )
     summary['庫存價值'] = summary['庫存數量'] * summary['平均進貨單價']
     # 篩選
     cats = ['全部'] + summary['類別名稱'].unique().tolist()
     sel_cat = st.selectbox('篩選類別', cats)
-    if sel_cat != '全部':
-        summary = summary[summary['類別名稱']==sel_cat]
+    if sel_cat != '全部': summary = summary[summary['類別名稱']==sel_cat]
     items = ['全部'] + summary['品項名稱'].unique().tolist()
     sel_item = st.selectbox('篩選品項', items)
-    if sel_item != '全部':
-        summary = summary[summary['品項名稱']==sel_item]
+    if sel_item != '全部': summary = summary[summary['品項名稱']==sel_item]
     subs = ['全部'] + summary['細項名稱'].unique().tolist()
     sel_sub = st.selectbox('篩選細項', subs)
-    if sel_sub != '全部':
-        summary = summary[summary['細項名稱']==sel_sub]
+    if sel_sub != '全部': summary = summary[summary['細項名稱']==sel_sub]
     # 顯示 DataFrame
     st.dataframe(
-        summary[['類別名稱','品項名稱','細項名稱',
-                 '進貨數量','進貨支出',
-                 '銷售數量','銷售收入',
-                 '庫存數量','平均進貨單價','庫存價值']],
-        use_container_width=True
+        summary[[
+            '類別名稱','品項名稱','細項名稱',
+            '進貨數量','進貨支出','平均進貨單價',
+            '銷售數量','銷售收入','平均銷售單價',
+            '庫存數量','庫存價值'
+        ]], use_container_width=True
     )
     # 全局指標
-    total_purchase = summary['進貨支出'].sum()
-    total_sales = summary['銷售收入'].sum()
-    total_inventory_value = summary['庫存價值'].sum()
-    st.metric('總進貨支出', f"{total_purchase:.2f}")
-    st.metric('總銷售收入', f"{total_sales:.2f}")
-    st.metric('總庫存價值', f"{total_inventory_value:.2f}")
+    st.metric('總進貨支出', f"{summary['進貨支出'].sum():.2f}")
+    st.metric('總銷售收入', f"{summary['銷售收入'].sum():.2f}")
+    st.metric('總庫存價值', f"{summary['庫存價值'].sum():.2f}")
