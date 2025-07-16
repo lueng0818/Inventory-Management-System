@@ -214,12 +214,15 @@ elif menu == '進貨':
             "JOIN 細項 s ON p.細項編號=s.細項編號", conn)
         st.dataframe(df_all)
         rec_id = st.number_input('紀錄ID', min_value=1, step=1)
+                    rec_id = int(rec_id)
         new_qty = st.number_input('新數量', min_value=0.0, step=0.1, format='%.1f')
         if st.button('更新進貨數量'):
-            price = conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?', (rec_id,)).fetchone()[0]
-            更新('進貨','紀錄ID',rec_id,'數量',new_qty)
-            更新('進貨','紀錄ID',rec_id,'總價',new_qty*price)
-            st.success('已更新進貨')
+            price_row = conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?', (rec_id,)).fetchone()
+            if price_row:
+                price = price_row[0]
+                更新('進貨','紀錄ID',rec_id,'數量',new_qty)
+                更新('進貨','紀錄ID',rec_id,'總價',new_qty*price)
+                st.success('已更新進貨')
         if st.button('刪除進貨紀錄'):
             刪除('進貨','紀錄ID',rec_id)
             st.success('已刪除進貨')
