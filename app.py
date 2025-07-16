@@ -178,7 +178,6 @@ elif menu == '進貨':
     tab1,tab2,tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除紀錄'])
     # 範例檔
     with tab1:
-        st.write('下載進貨範例CSV：')
         sample_csv = """類別名稱,品項名稱,細項名稱,數量,單價,日期
 零件類,螺絲,銀珠3mm,10,5.0,2025-07-16"""
         st.download_button('下載進貨範例檔', sample_csv, file_name='purchase_sample.csv', mime='text/csv')
@@ -189,7 +188,7 @@ elif menu == '進貨':
         if sel_cat != '請選擇':
             cid = cmap[sel_cat]
             items = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
-            imap = dict(zip(items['品項名稱'], items['品項編號']))
+            imap = dict(zip(items['細項名稱'] if False else items['品項名稱'], items['品項編號']))
             sel_item = st.selectbox('品項', ['請選擇']+list(imap.keys()))
             if sel_item != '請選擇':
                 iid = imap[sel_item]
@@ -207,35 +206,34 @@ elif menu == '進貨':
                         st.success('已儲存進貨')
     # 編輯/刪除
     with tab3:
+        st.subheader('編輯或刪除進貨紀錄')
         df_all = pd.read_sql(
             "SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱, p.數量, p.單價, p.總價, p.日期 "
             "FROM 進貨 p JOIN 類別 c ON p.類別編號=c.類別編號 "
             "JOIN 品項 i ON p.品項編號=i.品項編號 "
             "JOIN 細項 s ON p.細項編號=s.細項編號", conn)
         st.dataframe(df_all)
-        rec_id = st.number_input('紀錄ID', min_value=1, step=1)
-        row = conn.execute('SELECT 數量, 單價, 日期 FROM 進貨 WHERE 紀錄ID=?', (int(rec_id),)).fetchone()
+        rec_id = int(st.number_input('紀錄ID', min_value=1, step=1))
+        row = conn.execute(
+            'SELECT 數量, 單價, 日期 FROM 進貨 WHERE 紀錄ID=?', (rec_id,)
+        ).fetchone()
         if row:
             old_qty, old_price, old_date = row
         else:
-            old_qty, old_price, old_date = 0, 0.0, datetime.now().strftime('%Y-%m-%d')
-        old_date = None
-        if price_row:
-            old_date = price_row[1]
+            old_qty, old_price, old_date = 0.0, 0.0, datetime.now().strftime('%Y-%m-%d')
         new_qty = st.number_input('新數量', min_value=0.0, value=float(old_qty), step=0.1, format='%.1f')
-        new_date = st.date_input('新日期', value=datetime.strptime(old_date, '%Y-%m-%d') if old_date else datetime.now())
+        new_date = st.date_input('新日期', value=datetime.strptime(old_date, '%Y-%m-%d'))
+        update_date = st.checkbox('更新日期', value=False)
         if st.button('更新進貨紀錄'):
-            if price_row:
-                price = price_row[0]
-                更新('進貨','紀錄ID',rec_id,'數量',new_qty)
-                更新('進貨','紀錄ID',rec_id,'總價',new_qty*price)
-                更新('進貨','紀錄ID',rec_id,'日期', new_date.strftime('%Y-%m-%d'))
-                st.success('已更新進貨紀錄')
+            更新('進貨', '紀錄ID', rec_id, '數量', new_qty)
+            更新('進貨', '紀錄ID', rec_id, '總價', new_qty * old_price)
+            if update_date:
+                更新('進貨', '紀錄ID', rec_id, '日期', new_date.strftime('%Y-%m-%d'))
+            st.success('已更新進貨紀錄')
         if st.button('刪除進貨紀錄'):
-            刪除('進貨','紀錄ID',rec_id)
+            刪除('進貨', '紀錄ID', rec_id)
             st.success('已刪除進貨紀錄')
 
-# 銷售管理
 elif menu == '銷售':
     st.header('➕ 銷售管理')
     tab1,tab2,tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除紀錄'])
