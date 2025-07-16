@@ -311,7 +311,8 @@ elif menu == '進貨':
                         st.success('已儲存進貨紀錄')
 
     # 編輯/刪除
-    with tab3:
+     with tab3:
+        # 顯示所有進貨紀錄
         df_all = pd.read_sql(
             '''
             SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱,
@@ -325,43 +326,18 @@ elif menu == '進貨':
         )
         st.dataframe(df_all)
 
-        rec = st.number_input('輸入紀錄ID', min_value=1, step=1, key='pur_rec')
+        rec = st.number_input(
+            '輸入要操作的紀錄ID',
+            min_value=1, step=1, key='pur_rec'
+        )
         rec = int(rec)
-        row = conn.execute(
-            'SELECT 數量, 單價, 日期 FROM 進貨 WHERE 紀錄ID=?',
-            (rec,)
-        ).fetchone()
-        if row:
-            oq, op, od = row
-        else:
-            oq, op, od = 0.0, 0.0, datetime.now().strftime('%Y-%m-%d')
 
-        nq = st.number_input(
-            '新數量',
-            min_value=0.0,
-            value=float(oq),
-            step=0.1,
-            format='%.1f',
-            key='pur_new_qty'
-        )
-        update_date = st.checkbox('更新日期', key='pur_update_date')
-        nd = st.date_input(
-            '新日期',
-            value=datetime.strptime(od, '%Y-%m-%d'),
-            key='pur_new_date'
-        )
-        if st.button('更新進貨紀錄', key='btn_update_pur'):
-            更新('進貨', '紀錄ID', rec, '數量', nq)
-            更新('進貨', '紀錄ID', rec, '總價', nq * op)
-            if update_date:
-                更新('進貨', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
-            st.success(f'已更新進貨紀錄 {rec}')
-
-         if st.button('刪除進貨紀錄', key='btn_delete_purchase'):
+        # 單筆刪除
+        if st.button('刪除進貨紀錄', key='btn_delete_purchase'):
             刪除('進貨', '紀錄ID', rec)
             st.success(f'已刪除進貨紀錄 {rec}')
 
-        # 一键清空所有进货
+        # 全部刪除
         if st.button('刪除所有進貨紀錄', key='btn_delete_all_purchase'):
             c.execute("DELETE FROM 進貨")
             conn.commit()
