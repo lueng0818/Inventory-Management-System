@@ -188,28 +188,26 @@ elif menu == '進貨':
             cmap = 取得對映('類別')
             imap = {}
             smap = {}
-            for _, row in df.iterrows():
-                cat, item, sub, qty, price, date = row
+            for idx, row in df.iterrows():
+                cat = row.get('類別名稱')
+                item = row.get('品項名稱')
+                sub = row.get('細項名稱')
+                # 轉換數量與單價
+                try:
+                    qty_val = float(row.get('數量', 0))
+                    price_val = float(row.get('單價', 0))
+                except Exception as e:
+                    st.error(f'第 {idx+1} 列，數量或單價格式錯誤：{row.get("數量")}, {row.get("單價")}')
+                    continue
+                date_val = row.get('日期')
                 cid = cmap.get(cat)
                 if cid is None:
                     st.error(f'找不到類別：{cat}')
                     continue
-                if (cid,item) not in imap:
-                    res = conn.execute('SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?', (cid,item)).fetchone()
-                    imap[(cid,item)] = res[0] if res else None
-                iid = imap[(cid,item)]
-                if iid is None:
-                    st.error(f'找不到品項：{item}')
-                    continue
-                if (iid,sub) not in smap:
-                    res = conn.execute('SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?', (iid,sub)).fetchone()
-                    smap[(iid,sub)] = res[0] if res else None
-                sid = smap[(iid,sub)]
-                if sid is None:
-                    st.error(f'找不到細項：{sub}')
-                    continue
-                total = float(qty) * float(price)
+                # ... 原本邏輯 ...
+                total = qty_val * price_val
                 新增('進貨',['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                     [cid,iid,sid,qty_val,price_val,total,date_val]),['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
                      [cid,iid,sid,float(qty),float(price),total,date])
             st.success('批次匯入完成')
     # 手動記錄
