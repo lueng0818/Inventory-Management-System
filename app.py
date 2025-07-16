@@ -259,11 +259,23 @@ elif menu=='儀表板':
     # 合併並計算庫存
     summary = pd.merge(gp, gs, on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
     summary['庫存數量'] = summary['進貨數量'] - summary['銷售數量']
-    # 計算平均進貨單價及庫存價值
     summary['平均進貨單價'] = summary.apply(
         lambda row: row['進貨支出']/row['進貨數量'] if row['進貨數量']>0 else 0, axis=1
     )
     summary['庫存價值'] = summary['庫存數量'] * summary['平均進貨單價']
+    # 篩選
+    cats = ['全部'] + summary['類別名稱'].unique().tolist()
+    sel_cat = st.selectbox('篩選類別', cats)
+    if sel_cat != '全部':
+        summary = summary[summary['類別名稱']==sel_cat]
+    items = ['全部'] + summary['品項名稱'].unique().tolist()
+    sel_item = st.selectbox('篩選品項', items)
+    if sel_item != '全部':
+        summary = summary[summary['品項名稱']==sel_item]
+    subs = ['全部'] + summary['細項名稱'].unique().tolist()
+    sel_sub = st.selectbox('篩選細項', subs)
+    if sel_sub != '全部':
+        summary = summary[summary['細項名稱']==sel_sub]
     # 顯示 DataFrame
     st.dataframe(
         summary[['類別名稱','品項名稱','細項名稱',
