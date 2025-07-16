@@ -186,124 +186,22 @@ elif menu == '細項管理':
                                     更新('進貨','紀錄ID',rid,'數量',new_q)
                                     更新('進貨','紀錄ID',rid,'總價',new_total)
                                     st.success(f'已更新初始庫存數量為 {new_q}')
-                                    # 重新載入頁面以在儀表板反映更新
-                                    st.experimental_rerun()
-                            # 顯示儀表板中該細項最新統計
-                            df_p = pd.read_sql('SELECT * FROM 進貨', conn)
-                            df_s = pd.read_sql('SELECT * FROM 銷售', conn)
-                            df_c = 查詢('類別')
-                            df_i = 查詢('品項')
-                            df_su = 查詢('細項')
-                            gp = df_p.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
-                            gs = df_s.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
-                            summary = pd.merge(
-                                gp.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(進貨數量=('數量','sum'), 進貨支出=('總價','sum')),
-                                gs.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False).agg(銷售數量=('數量','sum'), 銷售收入=('總價','sum')),
-                                on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
-                            summary['庫存數量'] = summary['進貨數量'] - summary['銷售數量']
-                            st.subheader('更新後該細項統計')
-                            st.table(summary[summary['細項名稱']==sel_action][[
-                                '類別名稱','品項名稱','細項名稱','進貨數量','進貨支出','銷售數量','銷售收入','庫存數量'
-                            ]])
-                                    
-
-# 進貨管理
-elif menu=='進貨':
-    st.header('➕ 進貨管理')
-    tab1,tab2,tab3=st.tabs(['批次匯入','手動記錄','編輯記錄'])
-    with tab1:
-        st.info('批次匯入請使用範例檔')
-    with tab2:
-        pass
-    with tab3:
-        st.subheader('編輯進貨記錄')
-        df_all=pd.read_sql('SELECT 紀錄ID,類別編號,品項編號,細項編號,數量,單價,總價,日期 FROM 進貨',conn)
-        st.dataframe(df_all)
-        rec_id=st.number_input('輸入紀錄ID',min_value=1,step=1)
-        new_qty=st.number_input('新數量',min_value=0,step=1)
-        if st.button('更新數量'):
-            price=conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?',(rec_id,)).fetchone()
-            if price:
-                new_total=new_qty*price[0]
-                更新('進貨','紀錄ID',rec_id,'數量',new_qty)
-                更新('進貨','紀錄ID',rec_id,'總價',new_total)
-                st.success(f'已更新紀錄 {rec_id} 數量為 {new_qty}')
-                
-
-# 銷售管理
-elif menu=='銷售':
-    st.header('➕ 銷售管理')
-    tab1,tab2,tab3=st.tabs(['批次匯入','手動記錄','編輯記錄'])
-    with tab1:
-        st.info('批次匯入請使用範例檔')
-    with tab2:
-        pass
-    with tab3:
-        st.subheader('編輯銷售記錄')
-        df_all=pd.read_sql('SELECT 紀錄ID,類別編號,品項編號,細項編號,數量,單價,總價,日期 FROM 銷售',conn)
-        st.dataframe(df_all)
-        rec_id=st.number_input('輸入紀錄ID',min_value=1,step=1,key='sell_rec')
-        new_qty=st.number_input('新數量',min_value=0,step=1,key='sell_qty_edit')
-        if st.button('更新數量',key='update_sell'):
-            price=conn.execute('SELECT 單價 FROM 銷售 WHERE 紀錄ID=?',(rec_id,)).fetchone()
-            if price:
-                new_total=new_qty*price[0]
-                更新('銷售','紀錄ID',rec_id,'數量',new_qty)
-                更新('銷售','紀錄ID',rec_id,'總價',new_total)
-                st.success(f'已更新銷售紀錄 {rec_id} 數量為 {new_qty}')
-                
-
-# 日期查詢
-elif menu=='日期查詢':
-    st.header('📅 按日期查詢')
-    col1,col2=st.columns(2)
-    with col1: start=st.date_input('開始日期')
-    with col2: end=st.date_input('結束日期')
-    if start>end: st.error('開始日期不可晚於結束日期')
-    else:
-        df_p=pd.read_sql('SELECT * FROM 進貨',conn);df_s=pd.read_sql('SELECT * FROM 銷售',conn)
-        df_p['日期']=pd.to_datetime(df_p['日期']);df_s['日期']=pd.to_datetime(df_s['日期'])
-        sel_p=df_p[(df_p['日期']>=start)&(df_p['日期']<=end)]
-        sel_s=df_s[(df_s['日期']>=start)&(df_s['日期']<=end)]
-        df_c=查詢('類別');df_i=查詢('品項');df_su=查詢('細項')
-        sel_p=sel_p.merge(df_c,on='類別編號').merge(df_i,on='品項編號').merge(df_su,on='細項編號')
-        sel_s=sel_s.merge(df_c,on='類別編號').merge(df_i,on='品項編號').merge(df_su,on='細項編號')
-        gp=sel_p.groupby('類別名稱',as_index=False)['總價'].sum().rename(columns={'總價':'進貨支出'})
-        gs=sel_s.groupby('類別名稱',as_index=False)['總價'].sum().rename(columns={'總價':'銷售收入'})
-        summary_date=pd.merge(gp,gs,on='類別名稱',how='outer').fillna(0)
-        st.subheader(f'{start} 至 {end} 各類別統計')
-        st.dataframe(summary_date,use_container_width=True)
-        st.metric('所選期間總進貨支出',f"{sel_p['總價'].sum():.2f}")
-        st.metric('所選期間總銷售收入',f"{sel_s['總價'].sum():.2f}")
-
-# 儀表板
-elif menu=='儀表板':
-    st.header('📊 庫存儀表板')
-    df_p=pd.read_sql('SELECT * FROM 進貨',conn);df_s=pd.read_sql('SELECT * FROM 銷售',conn)
-    df_c=查詢('類別');df_i=查詢('品項');df_su=查詢('細項')
-    gp=(df_p.merge(df_c,on='類別編號').merge(df_i,on='品項編號').merge(df_su,on='細項編號')
-        .groupby(['類別名稱','品項名稱','細項名稱'],as_index=False)
-        .agg(進貨數量=('數量','sum'),進貨支出=('總價','sum')))
-    gs=(df_s.merge(df_c,on='類別編號').merge(df_i,on='品項編號').merge(df_su,on='細項編號')
-        .groupby(['類別名稱','品項名稱','細項名稱'],as_index=False)
-        .agg(銷售數量=('數量','sum'),銷售收入=('總價','sum')))
-    summary=pd.merge(gp,gs,on=['類別名稱','品項名稱','細項名稱'],how='outer').fillna(0)
-    summary['庫存數量']=summary['進貨數量']-summary['銷售數量']
-    summary['平均進貨單價']=summary.apply(lambda r:r['進貨支出']/r['進貨數量'] if r['進貨數量']>0 else 0,axis=1)
-    summary['平均銷售單價']=summary.apply(lambda r:r['銷售收入']/r['銷售數量'] if r['銷售數量']>0 else 0,axis=1)
-    summary['庫存價值']=summary['庫存數量']*summary['平均進貨單價']
-    cats=['全部']+summary['類別名稱'].unique().tolist();sel_cat=st.selectbox('篩選類別',cats)
-    if sel_cat!='全部': summary=summary[summary['類別名稱']==sel_cat]
-    items=['全部']+summary['品項名稱'].unique().tolist();sel_item=st.selectbox('篩選品項',items)
-    if sel_item!='全部': summary=summary[summary['品項名稱']==sel_item]
-    subs=['全部']+summary['細項名稱'].unique().tolist();sel_sub=st.selectbox('篩選細項',subs)
-    if sel_sub!='全部': summary=summary[summary['細項名稱']==sel_sub]
-    st.dataframe(summary[[
-        '類別名稱','品項名稱','細項名稱',
-        '進貨數量','平均進貨單價','進貨支出',
-        '銷售數量','平均銷售單價','銷售收入',
-        '庫存數量','庫存價值'
-    ]],use_container_width=True)
-    st.metric('總進貨支出',f"{summary['進貨支出'].sum():.2f}")
-    st.metric('總銷售收入',f"{summary['銷售收入'].sum():.2f}")
-    st.metric('總庫存價值',f"{summary['庫存價值'].sum():.2f}")
+                                    # 顯示更新後統計
+summary = pd.DataFrame()
+try:
+    df_p = pd.read_sql('SELECT * FROM 進貨', conn)
+    df_s = pd.read_sql('SELECT * FROM 銷售', conn)
+    df_c = 查詢('類別'); df_i = 查詢('品項'); df_su = 查詢('細項')
+    gp = df_p.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+    gs = df_s.merge(df_c, on='類別編號').merge(df_i, on='品項編號').merge(df_su, on='細項編號')
+    summary = pd.merge(
+        gp.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
+          .agg(進貨數量=('數量','sum')),
+        gs.groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
+          .agg(銷售數量=('數量','sum')),
+        on=['類別名稱','品項名稱','細項名稱'], how='outer').fillna(0)
+    updated = summary[summary['細項名稱']==sel_action]
+    st.subheader('更新後儀表板進貨／銷售數量')
+    st.table(updated[['類別名稱','品項名稱','細項名稱','進貨數量','銷售數量']])
+except Exception:
+    pass
