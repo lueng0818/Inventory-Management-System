@@ -336,66 +336,75 @@ elif menu == '銷售':
     st.header('➕ 銷售管理')
     tab1, tab2, tab3 = st.tabs(['批次匯入','手動記錄','編輯/刪除'])
 
-    # 批次匯入
+    # --- 批次匯入 ---
     with tab1:
         st.write('上傳 CSV 批次匯入銷售')
         uploaded = st.file_uploader('', type='csv', key='up_sales')
         if uploaded:
             df = pd.read_csv(uploaded)
-            cmap, imap, smap = 取得對映('類別'), {}, {}
-            for idx, row in df.iterrows():
-                raw_qty   = row['數量']; raw_pr = row['單價']
-                qty_str   = str(raw_qty).strip()
-                pr_str    = str(raw_pr).strip()
-                try:
-                    qty = float(qty_str)
-                except ValueError:
-                    st.error(f'銷售匯入，第 {idx+1} 列 數量格式錯誤：{repr(raw_qty)}')
-                    continue
-                try:
-                    pr  = float(pr_str)
-                except ValueError:
-                    st.error(f'銷售匯入，第 {idx+1} 列 單價格式錯誤：{repr(raw_pr)}')
-                    continue
+            # 欄位檢查
+            needed = ['類別名稱','品項名稱','細項名稱','數量','單價','日期']
+            missing = [col for col in needed if col not in df.columns]
+            if missing:
+                st.error(f'CSV 欄位不完整，缺少：{missing}')
+            else:
+                cmap, imap, smap = 取得對映('類別'), {}, {}
+                for idx, r in df.iterrows():
+                    cat = str(r.get('類別名稱','')).strip()
+                    itm = str(r.get('品項名稱','')).strip()
+                    sub = str(r.get('細項名稱','')).strip()
+                    raw_qty = r.get('數量'); raw_pr = r.get('單價')
+                    date    = str(r.get('日期','')).strip()
+                    # 轉數值
+                    try:
+                        qty = float(str(raw_qty).strip())
+                    except:
+                        st.error(f'銷售匯入第{idx+1}列 數量錯誤：{raw_qty}')
+                        continue
+                    try:
+                        pr = float(str(raw_pr).strip())
+                    except:
+                        st.error(f'銷售匯入第{idx+1}列 單價錯誤：{raw_pr}')
+                        continue
+                    # 對映類別
+                    cid = cmap.get(cat)
+                    if cid is None:
+                        st.error(f'銷售匯入第{idx+1}列 找不到類別：{cat}'); continue
+                    # 對映品項
+                    key_item = (cid, itm)
+                    if key_item not in imap:
+                        res = conn.execute(
+                            'SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?',
+                            key_item
+                        ).fetchone()
+                        imap[key_item] = res[0] if res else None
+                    iid = imap[key_item]
+                    if iid is None:
+                        st.error(f'銷售匯入第{idx+1}列 找不到品項：{itm}'); continue
+                    # 對映細項
+                    key_sub = (iid, sub)
+                    if key_sub not in smap:
+                        res = conn.execute(
+                            'SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?',
+                            key_sub
+                        ).fetchone()
+                        smap[key_sub] = res[0] if res else None
+                    sid = smap[key_sub]
+                    if sid is None:
+                        st.error(f'銷售匯入第{idx+1}列 找不到細項：{sub}'); continue
+                    # 寫入
+                    total = qty * pr
+                    新增(
+                        '銷售',
+                        ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                        [cid, iid, sid, qty, pr, total, date]
+                    )
+                st.success('銷售批次匯入完成')
 
-                date = row['日期']
-                cid = cmap.get(row['類別名稱'])
-                if cid is None:
-                    st.error(f'銷售匯入，第 {idx+1} 列 找不到類別：{row["類別名稱"]}')
-                    continue
-                if (cid,row['品項名稱']) not in imap:
-                    res = conn.execute(
-                        'SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?',
-                        (cid,row['品項名稱'])
-                    ).fetchone()
-                    imap[(cid,row['品項名稱'])] = res[0] if res else None
-                iid = imap[(cid,row['品項名稱'])]
-                if iid is None:
-                    st.error(f'銷售匯入，第 {idx+1} 列 找不到品項：{row["品項名稱"]}')
-                    continue
-                if (iid,row['細項名稱']) not in smap:
-                    res = conn.execute(
-                        'SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?',
-                        (iid,row['細項名稱'])
-                    ).fetchone()
-                    smap[(iid,row['細項名稱'])] = res[0] if res else None
-                sid = smap[(iid,row['細項名稱'])]
-                if sid is None:
-                    st.error(f'銷售匯入，第 {idx+1} 列 找不到細項：{row["細項名稱"]}')
-                    continue
-
-                total = qty * pr
-                新增(
-                    '銷售',
-                    ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
-                    [cid,iid,sid,qty,pr,total,date]
-                )
-            st.success('銷售批次匯入完成')
-
-    # 手動記錄
+    # --- 手動記錄 ---
     with tab2:
         cmap = 取得對映('類別')
-        selc = st.selectbox('類別', ['請選擇'] + list(cmap.keys()), key='sel_sales_cat')
+        selc = st.selectbox('類別', ['請選擇'] + list(cmap.keys()), key='sell_cat')
         if selc != '請選擇':
             cid = cmap[selc]
             items = pd.read_sql(
@@ -403,7 +412,7 @@ elif menu == '銷售':
                 conn, params=(cid,)
             )
             imap = dict(zip(items['品項名稱'], items['品項編號']))
-            sel_item = st.selectbox('品項', ['請選擇'] + list(imap.keys()), key='sel_sales_item')
+            sel_item = st.selectbox('品項', ['請選擇'] + list(imap.keys()), key='sell_item')
             if sel_item != '請選擇':
                 iid = imap[sel_item]
                 subs = pd.read_sql(
@@ -411,21 +420,21 @@ elif menu == '銷售':
                     conn, params=(iid,)
                 )
                 smap = dict(zip(subs['細項名稱'], subs['細項編號']))
-                sel_sub = st.selectbox('細項', ['請選擇'] + list(smap.keys()), key='sel_sales_sub')
+                sel_sub = st.selectbox('細項', ['請選擇'] + list(smap.keys()), key='sell_sub')
                 if sel_sub != '請選擇':
                     sid = smap[sel_sub]
-                    date = st.date_input('日期', key='sales_date')
-                    qty  = st.number_input('數量', min_value=0.0, step=0.1, format='%.1f', key='sales_qty')
-                    pr   = st.number_input('單價', min_value=0.0, step=0.1, format='%.1f', key='sales_pr')
-                    if st.button('儲存銷售', key='save_sales'):
+                    date = st.date_input('日期', key='sell_date')
+                    qty  = st.number_input('數量', min_value=0.0, step=0.1, format='%.1f', key='sell_qty')
+                    pr   = st.number_input('單價', min_value=0.0, step=0.1, format='%.1f', key='sell_pr')
+                    if st.button('儲存銷售', key='save_sell'):
                         新增(
                             '銷售',
                             ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
-                            [cid,iid,sid,qty,pr,qty*pr,date.strftime('%Y-%m-%d')]
+                            [cid, iid, sid, qty, pr, qty*pr, date.strftime('%Y-%m-%d')]
                         )
                         st.success('已儲存銷售紀錄')
 
-    # 編輯/刪除
+    # --- 編輯/刪除 ---
     with tab3:
         df_all = pd.read_sql(
             '''
@@ -440,48 +449,20 @@ elif menu == '銷售':
         )
         st.dataframe(df_all)
 
-        rec = st.number_input('輸入紀錄ID', min_value=1, step=1, key='edit_sales_rec')
+        rec = st.number_input('輸入要操作的紀錄ID', min_value=1, step=1, key='sell_rec')
         rec = int(rec)
-        row = conn.execute(
-            'SELECT 數量, 單價, 日期 FROM 銷售 WHERE 紀錄ID=?',
-            (rec,)
-        ).fetchone()
-        if row:
-            oq, op, od = row
-        else:
-            oq, op, od = 0.0, 0.0, datetime.now().strftime('%Y-%m-%d')
 
-        nq = st.number_input(
-            '新數量',
-            min_value=0.0,
-            value=float(oq),
-            step=0.1,
-            format='%.1f',
-            key='edit_sales_qty'
-        )
-        update_date = st.checkbox('更新日期', key='edit_sales_ud')
-        nd = st.date_input(
-            '新日期',
-            value=datetime.strptime(od, '%Y-%m-%d'),
-            key='edit_sales_nd'
-        )
-
-        if st.button('更新銷售紀錄', key='btn_edit_sales'):
-            更新('銷售', '紀錄ID', rec, '數量', nq)
-            更新('銷售', '紀錄ID', rec, '總價', nq * op)
-            if update_date:
-                更新('銷售', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
-            st.success(f'已更新銷售紀錄 {rec}')
-
+        # 刪除單筆銷售
         if st.button('刪除銷售紀錄', key='btn_delete_sale'):
             刪除('銷售', '紀錄ID', rec)
             st.success(f'已刪除銷售紀錄 {rec}')
 
-        # 一键清空所有销售
+        # 刪除所有銷售
         if st.button('刪除所有銷售紀錄', key='btn_delete_all_sales'):
             c.execute("DELETE FROM 銷售")
             conn.commit()
             st.success('所有銷售紀錄已刪除')
+
 
 # 日期查詢
 elif menu == '日期查詢':
