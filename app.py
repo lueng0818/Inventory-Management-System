@@ -52,6 +52,18 @@ conn.commit()
 def 查詢(table: str) -> pd.DataFrame:
     return pd.read_sql(f"SELECT * FROM {table}", conn)
 
+def 取得對映(table: str) -> dict:
+    mapping = {
+        '類別': ('類別名稱', '類別編號'),
+        '品項': ('品項名稱', '品項編號'),
+        '細項': ('細項名稱', '細項編號')
+    }
+    name_col, id_col = mapping.get(table, (None, None))
+    if not name_col:
+        return {}
+    rows = conn.execute(f"SELECT {name_col}, {id_col} FROM {table}").fetchall()
+    return {name: idx for name, idx in rows}
+
 def 更新(table: str, key_col: str, key_val, col: str, new_val):
     c.execute(f"UPDATE {table} SET {col} = ? WHERE {key_col} = ?", (new_val, key_val))
     conn.commit()
