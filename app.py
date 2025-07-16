@@ -165,7 +165,6 @@ elif menu=='銷售':
     更新('銷售', '紀錄ID', rec, '總價', nq * op)
     if ud:
         更新('銷售', '紀錄ID', rec, '日期', nd.strftime('%Y-%m-%d'))
-        更新('銷售','紀錄ID',rec,'日期',nd.strftime('%Y-%m-%d'))
     st.success('已更新銷售紀錄'):
     更新('銷售','紀錄ID',rec,'數量',nq)
     更新('銷售','紀錄ID',rec,'總價',nq*op)
