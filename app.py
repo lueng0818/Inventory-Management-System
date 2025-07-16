@@ -464,47 +464,41 @@ elif menu == '銷售':
             st.success('所有銷售紀錄已刪除')
 
 
-# 日期查詢
 elif menu == '日期查詢':
     st.header('📅 按日期查詢')
-    # 先讀資料並轉型
+
+    # 讀取並轉型日期欄位
     dfp = pd.read_sql('SELECT * FROM 進貨', conn)
     dfs = pd.read_sql('SELECT * FROM 銷售', conn)
     dfp['日期'] = pd.to_datetime(dfp['日期'], errors='coerce')
     dfs['日期'] = pd.to_datetime(dfs['日期'], errors='coerce')
-    
+
+    # 選擇日期範圍
     col1, col2 = st.columns(2)
     with col1:
         sd = st.date_input('開始日期')
     with col2:
         ed = st.date_input('結束日期')
+
     if sd > ed:
         st.error('開始日期不可大於結束日期')
     else:
-        # 篩選日期
-sel_p = dfp[(dfp['日期'] >= pd.to_datetime(sd)) & (dfp['日期'] <= pd.to_datetime(ed))]
-sel_s = dfs[(dfs['日期'] >= pd.to_datetime(sd)) & (dfs['日期'] <= pd.to_datetime(ed))]
+        # 篩選日期區間
+        sel_p = dfp[(dfp['日期'] >= pd.to_datetime(sd)) & (dfp['日期'] <= pd.to_datetime(ed))]
+        sel_s = dfs[(dfs['日期'] >= pd.to_datetime(sd)) & (dfs['日期'] <= pd.to_datetime(ed))]
 
-# 讀名稱對照表
-dfc  = 查詢('類別')
-dfi  = 查詢('品項')
-dfsu = 查詢('細項')
+        # 讀取名稱對照表並合併
+        dfc  = 查詢('類別')
+        dfi  = 查詢('品項')
+        dfsu = 查詢('細項')
+        sel_p = sel_p.merge(dfc, on='類別編號').merge(dfi, on='品項編號').merge(dfsu, on='細項編號')
+        sel_s = sel_s.merge(dfc, on='類別編號').merge(dfi, on='品項編號').merge(dfsu, on='細項編號')
 
-# 合併名稱
-sel_p = (sel_p
-         .merge(dfc, on='類別編號')
-         .merge(dfi, on='品項編號')
-         .merge(dfsu, on='細項編號')
-)
-sel_s = (sel_s
-         .merge(dfc, on='類別編號')
-         .merge(dfi, on='品項編號')
-         .merge(dfsu, on='細項編號')
-)
+        # 分類彙總
+        gp = sel_p.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'進貨支出'})
+        gs = sel_s.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'銷售收入'})
 
-# 分類彙總
-gp = sel_p.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'進貨支出'})
-gs = sel_s.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'銷售收入'})
+        # 顯示結果
         summary = pd.merge(gp, gs, on='類別名稱', how='outer').fillna(0)
         st.dataframe(summary, use_container_width=True)
         st.metric('期間進貨支出', f"{summary['進貨支出'].sum():.2f}")
