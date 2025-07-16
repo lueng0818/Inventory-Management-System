@@ -218,7 +218,7 @@ elif menu == '進貨':
     st.header('➕ 進貨管理')
     tab1, tab2, tab3 = st.tabs(['批次匯入','手動記錄','編輯/刪除'])
 
-    # 批次匯入
+    # --- 批次匯入 ---
     with tab1:
         st.write('上傳 CSV 批次匯入進貨')
         uploaded = st.file_uploader('', type='csv', key='up_purchase')
@@ -226,79 +226,80 @@ elif menu == '進貨':
             df = pd.read_csv(uploaded)
             cmap, imap, smap = 取得對映('類別'), {}, {}
             for idx, row in df.iterrows():
-                # 先清理字串
-                raw_qty   = row['數量']; raw_pr = row['單價']
-                qty_str   = str(raw_qty).strip()
-                pr_str    = str(raw_pr).strip()
+                raw_qty, raw_pr = row['數量'], row['單價']
+                qty_str = str(raw_qty).strip()
+                pr_str  = str(raw_pr).strip()
                 try:
                     qty = float(qty_str)
-                except ValueError:
-                    st.error(f'進貨匯入，第 {idx+1} 列 數量格式錯誤：{repr(raw_qty)}')
+                except:
+                    st.error(f'進貨匯入 第{idx+1}列 數量錯誤：{raw_qty}')
                     continue
                 try:
-                    pr  = float(pr_str)
-                except ValueError:
-                    st.error(f'進貨匯入，第 {idx+1} 列 單價格式錯誤：{repr(raw_pr)}')
+                    pr = float(pr_str)
+                except:
+                    st.error(f'進貨匯入 第{idx+1}列 單價錯誤：{raw_pr}')
                     continue
 
                 date = row['日期']
-                cid = cmap.get(row['類別名稱'])
+                cid  = cmap.get(row['類別名稱'])
                 if cid is None:
-                    st.error(f'進貨匯入，第 {idx+1} 列 找不到類別：{row["類別名稱"]}')
+                    st.error(f'進貨匯入 第{idx+1}列 找不到類別：{row["類別名稱"]}')
                     continue
-                # 對映品項
-                if (cid,row['品項名稱']) not in imap:
+
+                key_item = (cid, row['品項名稱'])
+                if key_item not in imap:
                     res = conn.execute(
                         'SELECT 品項編號 FROM 品項 WHERE 類別編號=? AND 品項名稱=?',
-                        (cid,row['品項名稱'])
+                        key_item
                     ).fetchone()
-                    imap[(cid,row['品項名稱'])] = res[0] if res else None
-                iid = imap[(cid,row['品項名稱'])]
+                    imap[key_item] = res[0] if res else None
+                iid = imap[key_item]
                 if iid is None:
-                    st.error(f'進貨匯入，第 {idx+1} 列 找不到品項：{row["品項名稱"]}')
+                    st.error(f'進貨匯入 第{idx+1}列 找不到品項：{row["品項名稱"]}')
                     continue
-                # 對映細項
-                if (iid,row['細項名稱']) not in smap:
+
+                key_sub = (iid, row['細項名稱'])
+                if key_sub not in smap:
                     res = conn.execute(
                         'SELECT 細項編號 FROM 細項 WHERE 品項編號=? AND 細項名稱=?',
-                        (iid,row['細項名稱'])
+                        key_sub
                     ).fetchone()
-                    smap[(iid,row['細項名稱'])] = res[0] if res else None
-                sid = smap[(iid,row['細項名稱'])]
+                    smap[key_sub] = res[0] if res else None
+                sid = smap[key_sub]
                 if sid is None:
-                    st.error(f'進貨匯入，第 {idx+1} 列 找不到細項：{row["細項名稱"]}')
+                    st.error(f'進貨匯入 第{idx+1}列 找不到細項：{row["細項名稱"]}')
                     continue
 
                 total = qty * pr
                 新增(
                     '進貨',
                     ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
-                    [cid,iid,sid,qty,pr,total,date]
+                    [cid, iid, sid, qty, pr, total, date]
                 )
             st.success('進貨批次匯入完成')
 
-    # 手動記錄
+    # --- 手動記錄 ---
     with tab2:
         cmap = 取得對映('類別')
         selc = st.selectbox('類別', ['請選擇'] + list(cmap.keys()), key='pur_cat')
         if selc != '請選擇':
-            cid = cmap[selc]
+            cid  = cmap[selc]
             items = pd.read_sql(
                 'SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',
                 conn, params=(cid,)
             )
             imap = dict(zip(items['品項名稱'], items['品項編號']))
-            subi = st.selectbox('品項', ['請選擇'] + list(imap.keys()), key='pur_item')
-            if subi != '請選擇':
-                iid = imap[subi]
+            sel_item = st.selectbox('品項', ['請選擇'] + list(imap.keys()), key='pur_item')
+            if sel_item != '請選擇':
+                iid = imap[sel_item]
                 subs = pd.read_sql(
                     'SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?',
                     conn, params=(iid,)
                 )
                 smap = dict(zip(subs['細項名稱'], subs['細項編號']))
-                subsi = st.selectbox('細項', ['請選擇'] + list(smap.keys()), key='pur_sub')
-                if subsi != '請選擇':
-                    sid = smap[subsi]
+                sel_sub = st.selectbox('細項', ['請選擇'] + list(smap.keys()), key='pur_sub')
+                if sel_sub != '請選擇':
+                    sid = smap[sel_sub]
                     date = st.date_input('日期', key='pur_date')
                     qty  = st.number_input('數量', min_value=0.0, step=0.1, format='%.1f', key='pur_qty')
                     pr   = st.number_input('單價', min_value=0.0, step=0.1, format='%.1f', key='pur_pr')
@@ -306,12 +307,12 @@ elif menu == '進貨':
                         新增(
                             '進貨',
                             ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
-                            [cid,iid,sid,qty,pr,qty*pr,date.strftime('%Y-%m-%d')]
+                            [cid, iid, sid, qty, pr, qty*pr, date.strftime('%Y-%m-%d')]
                         )
                         st.success('已儲存進貨紀錄')
 
-    # 編輯/刪除
-        with tab3:
+    # --- 編輯/刪除 ---
+    with tab3:
         # 顯示所有進貨紀錄
         df_all = pd.read_sql(
             '''
@@ -326,10 +327,7 @@ elif menu == '進貨':
         )
         st.dataframe(df_all)
 
-        rec = st.number_input(
-            '輸入要操作的紀錄ID',
-            min_value=1, step=1, key='pur_rec'
-        )
+        rec = st.number_input('輸入要操作的紀錄ID', min_value=1, step=1, key='pur_rec')
         rec = int(rec)
 
         # 單筆刪除
