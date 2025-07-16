@@ -53,30 +53,14 @@ conn.commit()
 def 查詢(table: str) -> pd.DataFrame:
     return pd.read_sql(f"SELECT * FROM {table}", conn)
 
-def 新增(table: str, cols: list, vals: list):
-    cols_str = ",".join(cols)
-    placeholders = ",".join(["?" for _ in vals])
-    try:
-        c.execute(f"INSERT INTO {table} ({cols_str}) VALUES ({placeholders})", vals)
-        conn.commit()
-        return c.lastrowid
-    except sqlite3.IntegrityError:
-        st.warning("操作失敗：可能重複或外鍵限制")
-        return None
-
-def 刪除(table: str, key_col: str, key_val):
-    c.execute(f"DELETE FROM {table} WHERE {key_col} = ?", (key_val,))
+def 更新(table: str, key_col: str, key_val, col: str, new_val):
+    """
+    更新單一欄位值
+    """
+    c.execute(f"UPDATE {table} SET {col} = ? WHERE {key_col} = ?", (new_val, key_val))
     conn.commit()
 
-def 取得對映(table: str) -> dict:
-    mapping = {
-        '類別': ('類別名稱', '類別編號'),
-        '品項': ('品項名稱', '品項編號'),
-        '細項': ('細項名稱', '細項編號')
-    }
-    name_col, id_col = mapping.get(table, (None, None))
-    rows = conn.execute(f"SELECT {name_col}, {id_col} FROM {table}").fetchall() if name_col else []
-    return {name: idx for name, idx in rows}
+def 新增(table: str, cols: list, vals: list):
 
 # --- UI 分支 ---
 st.sidebar.title("庫存管理系統")
