@@ -214,7 +214,7 @@ elif menu == '進貨':
             "JOIN 細項 s ON p.細項編號=s.細項編號", conn)
         st.dataframe(df_all)
         rec_id = st.number_input('紀錄ID', min_value=1, step=1)
-                    rec_id = int(rec_id)
+        rec_id = int(rec_id)
         new_qty = st.number_input('新數量', min_value=0.0, step=0.1, format='%.1f')
         if st.button('更新進貨數量'):
             price_row = conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?', (rec_id,)).fetchone()
