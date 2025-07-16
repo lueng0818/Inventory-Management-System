@@ -129,31 +129,114 @@ elif menu=='細項管理':
 # 進貨管理
 elif menu=='進貨':
     st.header('➕ 進貨管理')
-    tab1,tab2,tab3 = st.tabs(['批次匯入','手動記錄','編輯記錄'])
+    tab1, tab2, tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除記錄'])
+    # 範例檔下載
     with tab1:
-        st.info('批次匯入請使用範例檔')
+        st.write('請使用以下範例 CSV 進行批次匯入：')
+        sample_csv = '類別編號,品項編號,細項編號,數量,單價,日期
+1,1,1,10,5.0,2025-07-16'
+        st.download_button('下載進貨範例檔', sample_csv, file_name='purchase_sample.csv', mime='text/csv')
+    # 手動記錄
     with tab2:
-        # Manual entry omitted for brevity
-        pass
+        st.subheader('手動新增進貨')
+        cmap = 取得對映('類別')
+        sel_cat = st.selectbox('選擇類別', ['請選擇'] + list(cmap.keys()))
+        if sel_cat != '請選擇':
+            cid = cmap[sel_cat]
+            items = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
+            imap = dict(zip(items['品項名稱'], items['品項編號']))
+            sel_item = st.selectbox('選擇品項', ['請選擇'] + list(imap.keys()))
+            if sel_item != '請選擇':
+                iid = imap[sel_item]
+                subs = pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
+                smap = dict(zip(subs['細項名稱'], subs['細項編號']))
+                sel_sub = st.selectbox('選擇細項', ['請選擇'] + list(smap.keys()))
+                if sel_sub != '請選擇':
+                    sid = smap[sel_sub]
+                    date = st.date_input('日期')
+                    qty = st.number_input('數量', min_value=1, value=1)
+                    price = st.number_input('單價', min_value=0.0, format='%.2f')
+                    if st.button('儲存進貨'):
+                        total = qty * price
+                        新增('進貨', ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                              [cid, iid, sid, qty, price, total, date.strftime('%Y-%m-%d')])
+                        st.success(f'已儲存進貨：{sel_cat} / {sel_item} / {sel_sub}，數量 {qty}')
+    # 編輯/刪除紀錄
     with tab3:
-        st.subheader('編輯進貨記錄')
-        # 顯示名稱而非編號
-        df_all = pd.read_sql('SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱, p.數量, p.單價, p.總價, p.日期 FROM 進貨 p '
-                             'JOIN 類別 c ON p.類別編號=c.類別編號 '
-                             'JOIN 品項 i ON p.品項編號=i.品項編號 '
-                             'JOIN 細項 s ON p.細項編號=s.細項編號', conn)
+        st.subheader('編輯或刪除進貨紀錄')
+        df_all = pd.read_sql(
+            "SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱, p.數量, p.單價, p.總價, p.日期 "
+            "FROM 進貨 p JOIN 類別 c ON p.類別編號=c.類別編號 "
+            "JOIN 品項 i ON p.品項編號=i.品項編號 "
+            "JOIN 細項 s ON p.細項編號=s.細項編號", conn)
         st.dataframe(df_all)
-        rec_id = st.number_input('輸入紀錄ID', min_value=1, step=1)
-        new_qty = st.number_input('新數量', min_value=0, step=1)
+        rec_id = st.number_input('輸入要操作的紀錄ID', min_value=1, step=1)
+        new_qty = st.number_input('新數量', min_value=0, step=1, key='p_edit_qty')
         if st.button('更新數量'):
-            price = conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?',(rec_id,)).fetchone()
+            price = conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?', (rec_id,)).fetchone()
             if price:
-                new_total = new_qty * price[0]
-                更新('進貨','紀錄ID',rec_id,'數量',new_qty)
-                更新('進貨','紀錄ID',rec_id,'總價',new_total)
-                st.success(f'已更新紀錄 {rec_id} 數量為 {new_qty}')
+                更新('進貨','紀錄ID',rec_id,'數量', new_qty)
+                更新('進貨','紀錄ID',rec_id,'總價', new_qty * price[0])
+                st.success(f'已更新進貨紀錄 {rec_id} 數量為 {new_qty}')
+        if st.button('刪除進貨紀錄'):
+            刪除('進貨','紀錄ID', rec_id)
+            st.success(f'已刪除進貨紀錄 {rec_id}')
 
 # 銷售管理
+elif menu=='銷售':
+    st.header('➕ 銷售管理')
+    tab1, tab2, tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除紀錄'])
+    # 範例檔下載
+    with tab1:
+        st.write('請使用以下範例 CSV 進行批次匯入：')
+        sample_csv = '類別編號,品項編號,細項編號,數量,單價,日期
+1,1,1,5,8.0,2025-07-16'
+        st.download_button('下載銷售範例檔', sample_csv, file_name='sales_sample.csv', mime='text/csv')
+    # 手動記錄
+    with tab2:
+        st.subheader('手動新增銷售')
+        cmap = 取得對映('類別')
+        sel_cat = st.selectbox('選擇類別', ['請選擇'] + list(cmap.keys()))
+        if sel_cat != '請選擇':
+            cid = cmap[sel_cat]
+            items = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?', conn, params=(cid,))
+            imap = dict(zip(items['品項名稱'], items['品項編號']))
+            sel_item = st.selectbox('選擇品項', ['請選擇'] + list(imap.keys()))
+            if sel_item != '請選擇':
+                iid = imap[sel_item]
+                subs = pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?', conn, params=(iid,))
+                smap = dict(zip(subs['細項名稱'], subs['細項編號']))
+                sel_sub = st.selectbox('選擇細項', ['請選擇'] + list(smap.keys()))
+                if sel_sub != '請選擇':
+                    sid = smap[sel_sub]
+                    date = st.date_input('日期')
+                    qty = st.number_input('數量', min_value=1, value=1)
+                    price = st.number_input('單價', min_value=0.0, format='%.2f')
+                    if st.button('儲存銷售'):
+                        total = qty * price
+                        新增('銷售', ['類別編號','品項編號','細項編號','數量','單價','總價','日期'],
+                              [cid, iid, sid, qty, price, total, date.strftime('%Y-%m-%d')])
+                        st.success(f'已儲存銷售：{sel_cat} / {sel_item} / {sel_sub}，數量 {qty}')
+    # 編輯/刪除紀錄
+    with tab3:
+        st.subheader('編輯或刪除銷售紀錄')
+        df_all = pd.read_sql(
+            "SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱, p.數量, p.單價, p.總價, p.日期 "
+            "FROM 銷售 p JOIN 類別 c ON p.類別編號=c.類別編號 "
+            "JOIN 品項 i ON p.品項編號=i.品項編號 "
+            "JOIN 細項 s ON p.細項編號=s.細項編號", conn)
+        st.dataframe(df_all)
+        rec_id = st.number_input('輸入要操作的紀錄ID', min_value=1, step=1)
+        new_qty = st.number_input('新數量', min_value=0, step=1, key='s_edit_qty')
+        if st.button('更新數量', key='update_sell'):
+            price = conn.execute('SELECT 單價 FROM 銷售 WHERE 紀錄ID=?', (rec_id,)).fetchone()
+            if price:
+                更新('銷售','紀錄ID',rec_id,'數量', new_qty)
+                更新('銷售','紀錄ID',rec_id,'總價', new_qty * price[0])
+                st.success(f'已更新銷售紀錄 {rec_id} 數量為 {new_qty}')
+        if st.button('刪除銷售紀錄', key='delete_sell'):
+            刪除('銷售','紀錄ID', rec_id)
+            st.success(f'已刪除銷售紀錄 {rec_id}')
 elif menu=='銷售':
     st.header('➕ 銷售管理')
     tab1,tab2,tab3 = st.tabs(['批次匯入','手動記錄','編輯記錄'])
