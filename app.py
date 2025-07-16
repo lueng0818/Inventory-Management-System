@@ -85,7 +85,10 @@ def 刪除(table: str, key_col: str, key_val):
 
 # --- UI 分支 ---
 st.sidebar.title("庫存管理系統")
-menu = st.sidebar.radio("功能選單", [
+module = st.sidebar.radio("功能選單", [
+    '類別管理','品項管理','細項管理','進貨','銷售','日期查詢','儀表板'
+], key='menu')
+menu = st.session_state.module("功能選單", [
     '類別管理','品項管理','細項管理','進貨','銷售','日期查詢','儀表板'
 ])
 
