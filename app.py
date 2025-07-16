@@ -129,18 +129,56 @@ elif menu=='細項管理':
 # 進貨管理
 elif menu=='進貨':
     st.header('➕ 進貨管理')
-    tabs=st.tabs(['手動','編輯'])
-    with tabs[0]:
-        st.write('手動新增進貨...')
-    with tabs[1]:
-        df=pd.read_sql('SELECT * FROM 進貨',conn);st.dataframe(df)
-        rid=st.number_input('紀錄ID',min_value=1,step=1);nq=st.number_input('新數量',min_value=0,step=1)
-        if st.button('更新進貨'): 
-            price=conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?',(rid,)).fetchone()[0]
-            更新('進貨','紀錄ID',rid,'數量',nq); 更新('進貨','紀錄ID',rid,'總價',nq*price)
-            st.success('已更新進貨'); st.experimental_rerun()
+    tab1,tab2,tab3 = st.tabs(['批次匯入','手動記錄','編輯記錄'])
+    with tab1:
+        st.info('批次匯入請使用範例檔')
+    with tab2:
+        # Manual entry omitted for brevity
+        pass
+    with tab3:
+        st.subheader('編輯進貨記錄')
+        # 顯示名稱而非編號
+        df_all = pd.read_sql('SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱, p.數量, p.單價, p.總價, p.日期 FROM 進貨 p '
+                             'JOIN 類別 c ON p.類別編號=c.類別編號 '
+                             'JOIN 品項 i ON p.品項編號=i.品項編號 '
+                             'JOIN 細項 s ON p.細項編號=s.細項編號', conn)
+        st.dataframe(df_all)
+        rec_id = st.number_input('輸入紀錄ID', min_value=1, step=1)
+        new_qty = st.number_input('新數量', min_value=0, step=1)
+        if st.button('更新數量'):
+            price = conn.execute('SELECT 單價 FROM 進貨 WHERE 紀錄ID=?',(rec_id,)).fetchone()
+            if price:
+                new_total = new_qty * price[0]
+                更新('進貨','紀錄ID',rec_id,'數量',new_qty)
+                更新('進貨','紀錄ID',rec_id,'總價',new_total)
+                st.success(f'已更新紀錄 {rec_id} 數量為 {new_qty}')
 
 # 銷售管理
+elif menu=='銷售':
+    st.header('➕ 銷售管理')
+    tab1,tab2,tab3 = st.tabs(['批次匯入','手動記錄','編輯記錄'])
+    with tab1:
+        st.info('批次匯入請使用範例檔')
+    with tab2:
+        # Manual entry omitted for brevity
+        pass
+    with tab3:
+        st.subheader('編輯銷售記錄')
+        df_all = pd.read_sql('SELECT p.紀錄ID, c.類別名稱, i.品項名稱, s.細項名稱, p.數量, p.單價, p.總價, p.日期 FROM 銷售 p '
+                             'JOIN 類別 c ON p.類別編號=c.類別編號 '
+                             'JOIN 品項 i ON p.品項編號=i.品項編號 '
+                             'JOIN 細項 s ON p.細項編號=s.細項編號', conn)
+        st.dataframe(df_all)
+        rec_id = st.number_input('輸入紀錄ID', min_value=1, step=1, key='sell_rec')
+        new_qty = st.number_input('新數量', min_value=0, step=1, key='sell_qty_edit')
+        if st.button('更新數量', key='update_sell'):
+            price = conn.execute('SELECT 單價 FROM 銷售 WHERE 紀錄ID=?',(rec_id,)).fetchone()
+            if price:
+                new_total = new_qty * price[0]
+                更新('銷售','紀錄ID',rec_id,'數量',new_qty)
+                更新('銷售','紀錄ID',rec_id,'總價',new_total)
+                st.success(f'已更新銷售紀錄 {rec_id} 數量為 {new_qty}')
+
 elif menu=='銷售':
     st.header('➕ 銷售管理')
     tabs=st.tabs(['手動','編輯'])
