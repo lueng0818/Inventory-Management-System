@@ -278,12 +278,12 @@ elif menu=='儀表板':
     subs = ['全部'] + summary['細項名稱'].unique().tolist()
     sel_sub = st.selectbox('篩選細項', subs)
     if sel_sub != '全部': summary = summary[summary['細項名稱']==sel_sub]
-    # 顯示 DataFrame
+    # 顯示 DataFrame：進貨數量、平均進貨單價、進貨支出、銷售數量、平均銷售單價、銷售收入、庫存數量、庫存價值
     st.dataframe(
         summary[[
             '類別名稱','品項名稱','細項名稱',
-            '進貨數量','進貨支出','平均進貨單價',
-            '銷售數量','銷售收入','平均銷售單價',
+            '進貨數量','平均進貨單價','進貨支出',
+            '銷售數量','平均銷售單價','銷售收入',
             '庫存數量','庫存價值'
         ]], use_container_width=True
     )
