@@ -179,8 +179,8 @@ elif menu == '進貨':
     # 範例檔
     with tab1:
         st.write('下載進貨範例CSV：')
-        sample_csv = """類別編號,品項編號,細項編號,數量,單價,日期
-1,1,1,10,5.0,2025-07-16"""
+        sample_csv = """類別名稱,品項名稱,細項名稱,數量,單價,日期
+零件類,螺絲,銀珠3mm,10,5.0,2025-07-16"""
         st.download_button('下載進貨範例檔', sample_csv, file_name='purchase_sample.csv', mime='text/csv')
     # 手動記錄
     with tab2:
@@ -233,8 +233,8 @@ elif menu == '銷售':
     tab1,tab2,tab3 = st.tabs(['範例檔下載','手動記錄','編輯/刪除紀錄'])
     # 範例檔
     with tab1:
-        sample_csv = """類別編號,品項編號,細項編號,數量,單價,日期
-1,1,1,5,8.0,2025-07-16"""
+        sample_csv = """類別名稱,品項名稱,細項名稱,數量,單價,日期
+零件類,螺絲,銀珠3mm,5,8.0,2025-07-16"""
         st.download_button('下載銷售範例檔', sample_csv, file_name='sales_sample.csv', mime='text/csv')
     # 手動記錄
     with tab2:
