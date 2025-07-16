@@ -93,7 +93,6 @@ if menu == '類別管理':
                 新增('類別', ['類別名稱'], [new_cat])
             if del_cat.isdigit():
                 刪除('類別', '類別編號', int(del_cat))
-            st.experimental_rerun()
 
 elif menu == '品項管理':
     st.header('⚙️ 品項管理')
@@ -114,7 +113,6 @@ elif menu == '品項管理':
                     新增('品項', ['類別編號', '品項名稱'], [cid, new_item])
                 if del_item.isdigit():
                     刪除('品項', '品項編號', int(del_item))
-                st.experimental_rerun()
 
 elif menu == '細項管理':
     st.header('⚙️ 細項管理')
@@ -142,7 +140,6 @@ elif menu == '細項管理':
                         新增('細項', ['品項編號', '細項名稱'], [iid, new_sub])
                     if del_sub.isdigit():
                         刪除('細項', '細項編號', int(del_sub))
-                    st.experimental_rerun()
 
 elif menu == '進貨':
     st.header('➕ 進貨管理')
