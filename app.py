@@ -311,7 +311,7 @@ elif menu == '進貨':
                         st.success('已儲存進貨紀錄')
 
     # 編輯/刪除
-     with tab3:
+        with tab3:
         # 顯示所有進貨紀錄
         df_all = pd.read_sql(
             '''
