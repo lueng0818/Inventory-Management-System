@@ -160,8 +160,12 @@ elif menu=='銷售':
     nq=st.number_input('新數量',0.0,value=float(oq),step=0.1,format='%.1f', key='sn')
     ud=st.checkbox('更新日期',key='su')
     nd=st.date_input('新日期',value=datetime.strptime(od,'%Y-%m-%d'))
-    if st.button('更新銷售',key='up'): 更新('銷售','紀錄ID',rec,'數量',nq); 更新('銷售','紀錄ID',rec,'總價',nq*op);
-        (更新('銷售','紀錄ID',rec,'日期',nd.strftime('%Y-%m-%d')) if ud else None);st.success('已更新')
+    if st.button('更新銷售', key='up'):
+    更新('銷售','紀錄ID',rec,'數量',nq)
+    更新('銷售','紀錄ID',rec,'總價',nq*op)
+    if ud:
+        更新('銷售','紀錄ID',rec,'日期',nd.strftime('%Y-%m-%d'))
+    st.success('已更新銷售紀錄')
     if st.button('刪除銷售',key='del_s'): 刪除('銷售','紀錄ID',rec);st.success('已刪除')
 
 # 日期查詢
