@@ -481,10 +481,30 @@ elif menu == '日期查詢':
     if sd > ed:
         st.error('開始日期不可大於結束日期')
     else:
-        sel_p = dfp[(dfp['日期'] >= pd.to_datetime(sd)) & (dfp['日期'] <= pd.to_datetime(ed))]
-        sel_s = dfs[(dfs['日期'] >= pd.to_datetime(sd)) & (dfs['日期'] <= pd.to_datetime(ed))]
-        gp = sel_p.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'進貨支出'})
-        gs = sel_s.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'銷售收入'})
+        # 篩選日期
+sel_p = dfp[(dfp['日期'] >= pd.to_datetime(sd)) & (dfp['日期'] <= pd.to_datetime(ed))]
+sel_s = dfs[(dfs['日期'] >= pd.to_datetime(sd)) & (dfs['日期'] <= pd.to_datetime(ed))]
+
+# 讀名稱對照表
+dfc  = 查詢('類別')
+dfi  = 查詢('品項')
+dfsu = 查詢('細項')
+
+# 合併名稱
+sel_p = (sel_p
+         .merge(dfc, on='類別編號')
+         .merge(dfi, on='品項編號')
+         .merge(dfsu, on='細項編號')
+)
+sel_s = (sel_s
+         .merge(dfc, on='類別編號')
+         .merge(dfi, on='品項編號')
+         .merge(dfsu, on='細項編號')
+)
+
+# 分類彙總
+gp = sel_p.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'進貨支出'})
+gs = sel_s.groupby('類別名稱', as_index=False)['總價'].sum().rename(columns={'總價':'銷售收入'})
         summary = pd.merge(gp, gs, on='類別名稱', how='outer').fillna(0)
         st.dataframe(summary, use_container_width=True)
         st.metric('期間進貨支出', f"{summary['進貨支出'].sum():.2f}")
