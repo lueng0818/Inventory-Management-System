@@ -167,7 +167,7 @@ def 批次匯入銷售(df: pd.DataFrame) -> int:
 # --- 側邊欄：官網連結 + 系統選單 ---
 site_base = "https://sites.google.com/view/trumi-jewelry"
 links = {
-    "首頁":          f"{site_base}/home",
+    "首頁":          f"{site_base}/首頁",
     "熱銷推薦":      f"{site_base}/%E7%86%B1%E9%8A%B7%E6%8E%A8%E8%96%A6",
     "主題系列":      f"{site_base}/%E4%B8%BB%E9%A1%8C%E7%B3%BB%E5%88%97",
     "婚戒物語":      f"{site_base}/%E5%A9%9A%E6%88%92%E7%89%A9%E8%AA%9E",
