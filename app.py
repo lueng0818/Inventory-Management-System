@@ -234,6 +234,7 @@ elif menu == '品項管理':
     st.header('⚙️ 品項管理')
     tab1, tab2 = st.tabs(['批次匯入','單筆管理'])
 
+    # 批次匯入（保持不变）
     with tab1:
         sample = pd.DataFrame({'類別':['示例A'],'品項':['示例X'],'細項':['']})
         st.download_button('下載品項批次範例',
@@ -244,39 +245,61 @@ elif menu == '品項管理':
         if up:
             try: df = pd.read_excel(up)
             except: df = pd.read_csv(up)
-            批次匯入主檔(df); st.success('批次匯入品項完成')
+            批次匯入主檔(df)
+            st.success('批次匯入品項完成')
 
+    # 單筆管理
     with tab2:
         cmap = 取得對映('類別')
-        if not cmap: st.warning('請先新增類別')
-        else:
-            sel = st.selectbox('類別', list(cmap.keys())); cid = cmap[sel]
+        if not cmap:
+            st.warning('請先新增類別')
+            st.stop()
+
+        sel = st.radio('選擇類別', list(cmap.keys()), index=0, key='item_cat_radio')
+        cid = cmap[sel]
+
+        # 嘗試同時讀取 系列 欄位，若出錯則補空白
+        try:
             df = pd.read_sql(
-                'SELECT 品項編號,品項名稱,系列 FROM 品項 WHERE 類別編號=?',
+                'SELECT 品項編號, 品項名稱, 系列 FROM 品項 WHERE 類別編號=?',
                 conn, params=(cid,)
-            ).rename(columns={'品項編號':'編號','品項名稱':'名稱'})
-            st.table(df)
-            # 系列編輯
-            series_map = dict(zip(df['名稱'], df['系列'].fillna('')))
-            sel_item = st.selectbox('編輯品項', list(series_map.keys()), key='series_sel')
-            new_series = st.text_input('主題系列', value=series_map[sel_item], key='series_new')
-            if st.button('更新系列', key='series_save'):
-                iid = df[df['名稱']==sel_item]['編號'].iloc[0]
-                c.execute('UPDATE 品項 SET 系列=? WHERE 品項編號=?', (new_series, iid))
-                conn.commit(); st.success('系列已更新'); st.experimental_rerun()
-            st.download_button('下載品項 CSV',
-                df.to_csv(index=False,encoding='utf-8-sig'),
-                f'items_{cid}.csv','text/csv'
             )
-            with st.form('form_item'):
-                newi = st.text_input('新增品項', key='item_new')
-                deli = st.text_input('刪除編號', key='item_del')
-                confirm = st.checkbox(f'確認刪除 品項 {deli}?') if deli.isdigit() else False
-                if st.form_submit_button('執行'):
-                    if newi: 新增('品項',['類別編號','品項名稱'],[cid,newi])
-                    if deli.isdigit() and confirm: 刪除('品項','品項編號',int(deli))
-                    st.session_state['item_new']=''; st.session_state['item_del']=''
-                    st.experimental_rerun()
+        except Exception:
+            df = pd.read_sql(
+                'SELECT 品項編號, 品項名稱 FROM 品項 WHERE 類別編號=?',
+                conn, params=(cid,)
+            )
+            df['系列'] = ''
+
+        df = df.rename(columns={'品項編號':'編號','品項名稱':'名稱'})
+        st.table(df)
+
+        # 系列编辑
+        series_map = dict(zip(df['名稱'], df['系列'].fillna('')))
+        sel_item = st.selectbox('編輯品項', list(series_map.keys()), key='series_sel')
+        new_series = st.text_input('主題系列', value=series_map[sel_item], key='series_new')
+        if st.button('更新系列', key='series_save'):
+            iid = df[df['名稱']==sel_item]['編號'].iloc[0]
+            c.execute('UPDATE 品項 SET 系列=? WHERE 品項編號=?', (new_series, iid))
+            conn.commit()
+            st.success('系列已更新')
+            st.experimental_rerun()
+
+        # 下載與單筆 CRUD
+        st.download_button('下載品項 CSV',
+            df.to_csv(index=False, encoding='utf-8-sig'),
+            f'items_{cid}.csv','text/csv'
+        )
+        with st.form('form_item'):
+            newi = st.text_input('新增品項', key='item_new')
+            deli = st.text_input('刪除編號', key='item_del')
+            confirm = st.checkbox(f'確認刪除 品項 {deli}?') if deli.isdigit() else False
+            if st.form_submit_button('執行'):
+                if newi:
+                    新增('品項',['類別編號','品項名稱'],[cid,newi])
+                if deli.isdigit() and confirm:
+                    刪除('品項','品項編號',int(deli))
+                st.experimental_rerun()
 
 elif menu == '細項管理':
     st.header('⚙️ 細項管理')
