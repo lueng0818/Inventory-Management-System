@@ -302,22 +302,35 @@ elif menu == '進貨':
                         st.success(f'進貨記錄已儲存：{date_str}')
     # === 編輯紀錄 ===
     with tab4:
-        df=查詢('進貨')
-        df['日期']=pd.to_datetime(df['日期'],errors='coerce')
+    df = 查詢('進貨')
+    if df.empty:
+        st.warning("目前無進貨紀錄")
+    else:
+        # 將日期欄位轉成 datetime
+        df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
+        # 顯示完整列表
         st.dataframe(df)
-        rid=st.selectbox('選擇紀錄ID',df['紀錄ID'].tolist(),key='edit_p_id')
-        row=df[df['紀錄ID']==rid].iloc[0]
-        date_new=st.date_input('日期',value=row['日期'].date(),key='edit_p_date')
-        qty_new=st.number_input('數量',min_value=1,value=int(row['數量']),key='edit_p_qty')
-        price_new=st.number_input('單價',min_value=0.0,format='%.2f',value=float(row['單價']),key='edit_p_price')
-        if st.button('更新進貨紀錄',key='edit_p_save'):
-            total=qty_new*price_new
-            c.execute(
-                'UPDATE 進貨 SET 數量=?,單價=?,總價=?,日期=? WHERE 紀錄ID=?',
-                (qty_new,price_new,total,date_new.strftime('%Y-%m-%d'),rid)
-            )
-            conn.commit()
-            st.success('進貨紀錄更新成功')
+        # 只讓使用者從存在的 ID 中選擇
+        rid_list = df['紀錄ID'].tolist()
+        rid = st.selectbox('選擇進貨紀錄 ID', rid_list, key='edit_p_id')
+        selected = df[df['紀錄ID'] == rid]
+        if selected.empty:
+            st.warning("找不到此進貨紀錄")
+        else:
+            row = selected.iloc[0]
+            # 填入預設值供修改
+            date_new  = st.date_input('日期', value=row['日期'].date(), key='edit_p_date')
+            qty_new   = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_p_qty')
+            price_new = st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_p_price')
+            if st.button('更新進貨紀錄', key='edit_p_save'):
+                total = qty_new * price_new
+                c.execute(
+                    'UPDATE 進貨 SET 數量=?, 單價=?, 總價=?, 日期=? WHERE 紀錄ID=?',
+                    (qty_new, price_new, total, date_new.strftime('%Y-%m-%d'), rid)
+                )
+                conn.commit()
+                st.success('進貨紀錄更新成功')
+
             
 elif menu == '銷售':
     st.header('➕ 銷售管理')
@@ -388,22 +401,31 @@ elif menu == '銷售':
                         
     # === 編輯紀錄 ===
     with tab4:
-        df=查詢('銷售')
-        df['日期']=pd.to_datetime(df['日期'],errors='coerce')
+    df = 查詢('銷售')
+    if df.empty:
+        st.warning("目前無銷售紀錄")
+    else:
+        df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
         st.dataframe(df)
-        rid=st.selectbox('選擇紀錄ID',df['紀錄ID'].tolist(),key='edit_s_id')
-        row=df[df['紀錄ID']==rid].iloc[0]
-        date_new=st.date_input('日期',value=row['日期'].date(),key='edit_s_date')
-        qty_new=st.number_input('數量',min_value=1,value=int(row['數量']),key='edit_s_qty')
-        price_new=st.number_input('單價',min_value=0.0,format='%.2f',value=float(row['單價']),key='edit_s_price')
-        if st.button('更新銷售紀錄',key='edit_s_save'):
-            total=qty_new*price_new
-            c.execute(
-                'UPDATE 銷售 SET 數量=?,單價=?,總價=?,日期=? WHERE 紀錄ID=?',
-                (qty_new,price_new,total,date_new.strftime('%Y-%m-%d'),rid)
-            )
-            conn.commit()
-            st.success('銷售紀錄更新成功')
+        rid_list = df['紀錄ID'].tolist()
+        rid = st.selectbox('選擇銷售紀錄 ID', rid_list, key='edit_s_id')
+        selected = df[df['紀錄ID'] == rid]
+        if selected.empty:
+            st.warning("找不到此銷售紀錄")
+        else:
+            row = selected.iloc[0]
+            date_new  = st.date_input('日期', value=row['日期'].date(), key='edit_s_date')
+            qty_new   = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_s_qty')
+            price_new = st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_s_price')
+            if st.button('更新銷售紀錄', key='edit_s_save'):
+                total = qty_new * price_new
+                c.execute(
+                    'UPDATE 銷售 SET 數量=?, 單價=?, 總價=?, 日期=? WHERE 紀錄ID=?',
+                    (qty_new, price_new, total, date_new.strftime('%Y-%m-%d'), rid)
+                )
+                conn.commit()
+                st.success('銷售紀錄更新成功')
+
 
 elif menu == '儀表板':
     st.header('📊 庫存儀表板')
