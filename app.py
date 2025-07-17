@@ -572,42 +572,82 @@ elif menu == '銷售':
 elif menu == '儀表板':
     st.header('📊 庫存儀表板')
 
+    # 讀取主檔與紀錄
+    df_c  = 查詢('類別').rename(columns={'類別編號':'cat_id','類別名稱':'cat_name'})
+    df_i  = 查詢('品項').rename(columns={'品項編號':'item_id','品項名稱':'item_name','類別編號':'cat_id'})
+    df_su = 查詢('細項').rename(columns={'細項編號':'sub_id','細項名稱':'sub_name','品項編號':'item_id'})
     df_p  = pd.read_sql('SELECT * FROM 進貨', conn)
     df_s  = pd.read_sql('SELECT * FROM 銷售', conn)
-    df_c  = 查詢('類別')
-    df_i  = 查詢('品項')
-    df_su = 查詢('細項')
 
-    gp = (df_p.merge(df_c, on='類別編號')
-           .merge(df_i, on='品項編號')
-           .merge(df_su, on='細項編號')
-           .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
-           .agg(進貨=('數量','sum'), 支出=('總價','sum')))
+    # 合併所有欄位
+    merged_p = (df_p
+                .merge(df_c, on='cat_id')
+                .merge(df_i, on='item_id')
+                .merge(df_su, on='sub_id'))
+    merged_s = (df_s
+                .merge(df_c, on='cat_id')
+                .merge(df_i, on='item_id')
+                .merge(df_su, on='sub_id'))
 
-    gs = (df_s.merge(df_c, on='類別編號')
-           .merge(df_i, on='品項編號')
-           .merge(df_su, on='細項編號')
-           .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
-           .agg(銷售=('數量','sum'), 收入=('總價','sum')))
-
-    summary = pd.merge(gp, gs,
-                       on=['類別名稱','品項名稱','細項名稱'],
-                       how='outer').fillna(0)
+    # 彙總
+    gp = (merged_p.groupby(['cat_name','item_name','sub_name'], as_index=False)
+               .agg(進貨=('數量','sum'), 支出=('總價','sum')))
+    gs = (merged_s.groupby(['cat_name','item_name','sub_name'], as_index=False)
+               .agg(銷售=('數量','sum'), 收入=('總價','sum')))
+    summary = pd.merge(gp, gs, on=['cat_name','item_name','sub_name'], how='outer').fillna(0)
     summary['庫存'] = summary['進貨'] - summary['銷售']
 
-    threshold = st.number_input('低庫存警戒量', min_value=0, value=5)
-    low_stock = summary[summary['庫存'] < threshold]
-    if not low_stock.empty:
-        st.warning('以下品項庫存低於警戒量')
-        st.table(low_stock)
+    # ===== 篩選區塊 =====
+    with st.expander('依條件篩選'):
+        # 類別選單
+        cat_options = ['全部'] + sorted(df_c['cat_name'].unique().tolist())
+        sel_cat = st.selectbox('選擇類別', cat_options)
+        # 品項選單（依類別動態）
+        if sel_cat != '全部':
+            items = df_i[df_i['cat_name']==sel_cat]['item_name'].unique().tolist()
+        else:
+            items = df_i['item_name'].unique().tolist()
+        item_options = ['全部'] + sorted(items)
+        sel_item = st.selectbox('選擇品項', item_options)
+        # 細項選單（依品項動態）
+        if sel_item != '全部':
+            subs = df_su[df_su['item_name']==sel_item]['sub_name'].unique().tolist()
+        else:
+            subs = df_su['sub_name'].unique().tolist()
+        sub_options = ['全部'] + sorted(subs)
+        sel_sub = st.selectbox('選擇細項', sub_options)
 
+        # 套用篩選按鈕
+        if st.button('套用篩選'):
+            df_filtered = summary.copy()
+            if sel_cat != '全部':
+                df_filtered = df_filtered[df_filtered['cat_name']==sel_cat]
+            if sel_item != '全部':
+                df_filtered = df_filtered[df_filtered['item_name']==sel_item]
+            if sel_sub != '全部':
+                df_filtered = df_filtered[df_filtered['sub_name']==sel_sub]
+            st.success(f"篩選完成，共 {len(df_filtered)} 筆資料")
+            st.dataframe(df_filtered)
+
+            # 匯出按鈕
+            st.download_button(
+                '下載篩選後 CSV',
+                df_filtered.to_csv(index=False, encoding='utf-8-sig'),
+                'filtered_summary.csv',
+                'text/csv'
+            )
+
+    # ===== 完整摘要（未篩選） =====
+    st.subheader('📋 全部庫存摘要')
     st.dataframe(summary)
     st.download_button(
-        '下載庫存摘要 CSV',
+        '下載完整庫存摘要 CSV',
         summary.to_csv(index=False, encoding='utf-8-sig'),
-        'summary.csv','text/csv'
+        'summary.csv',
+        'text/csv'
     )
 
+    # 財務指標
     total_spent = gp['支出'].sum()
     total_rev   = gs['收入'].sum()
     st.metric('總支出', f"{total_spent:.2f}")
