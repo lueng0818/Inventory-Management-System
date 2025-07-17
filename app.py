@@ -236,7 +236,7 @@ elif menu == '細項管理':
                         st.experimental_rerun()
 elif menu == '進貨':
     st.header('➕ 進貨管理')
-    tab1, tab2, tab3 = st.tabs(['批次匯入','查詢/匯出','手動記錄'])
+    tab1, tab2, tab3 ,tab4= st.tabs(['批次匯入','查詢/匯出','手動記錄'])
 
     # 批次匯入
     with tab1:
@@ -321,7 +321,7 @@ elif menu == '進貨':
             
 elif menu == '銷售':
     st.header('➕ 銷售管理')
-    tab1, tab2, tab3 = st.tabs(['批次匯入','查詢/匯出','手動記錄'])
+    tab1, tab2, tab3 ,tab4= st.tabs(['批次匯入','查詢/匯出','手動記錄'])
 
     # 批次匯入
     with tab1:
