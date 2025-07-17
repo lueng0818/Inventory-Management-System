@@ -302,25 +302,21 @@ elif menu == '進貨':
                         st.success(f'進貨記錄已儲存：{date_str}')
     # === 編輯紀錄 ===
     with tab4:
-        df = 查詢('進貨')
+        df = 查詢('進貨')  # 對銷售在相應區塊中改成 '銷售'
         if df.empty:
             st.warning("目前無進貨紀錄")
         else:
-            # 將日期欄位轉成 datetime
             df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
-            # 顯示完整列表
             st.dataframe(df)
-            # 只讓使用者從存在的 ID 中選擇
             rid_list = df['紀錄ID'].tolist()
-            rid = st.selectbox('選擇進貨紀錄 ID', rid_list, key='edit_p_id')
+            rid = st.selectbox('選擇紀錄ID', rid_list, key='edit_p_id')
             selected = df[df['紀錄ID'] == rid]
             if selected.empty:
-                st.warning("找不到此進貨紀錄")
+                st.warning("找不到此紀錄")
             else:
                 row = selected.iloc[0]
-                # 填入預設值供修改
-                date_new  = st.date_input('日期', value=row['日期'].date(), key='edit_p_date')
-                qty_new   = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_p_qty')
+                date_new = st.date_input('日期', value=row['日期'].date(), key='edit_p_date')
+                qty_new = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_p_qty')
                 price_new = st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_p_price')
                 if st.button('更新進貨紀錄', key='edit_p_save'):
                     total = qty_new * price_new
@@ -330,6 +326,12 @@ elif menu == '進貨':
                     )
                     conn.commit()
                     st.success('進貨紀錄更新成功')
+                # 刪除功能
+                del_confirm = st.checkbox(f'確認刪除進貨紀錄ID {rid}?')
+                if st.button('刪除進貨紀錄', key='del_p') and del_confirm:
+                    刪除('進貨', '紀錄ID', rid)
+                    st.success(f'已刪除進貨紀錄ID {rid}')
+                    st.experimental_rerun()
 
             
 elif menu == '銷售':
@@ -408,14 +410,14 @@ elif menu == '銷售':
             df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
             st.dataframe(df)
             rid_list = df['紀錄ID'].tolist()
-            rid = st.selectbox('選擇銷售紀錄 ID', rid_list, key='edit_s_id')
+            rid = st.selectbox('選擇紀錄ID', rid_list, key='edit_s_id')
             selected = df[df['紀錄ID'] == rid]
             if selected.empty:
-                st.warning("找不到此銷售紀錄")
+                st.warning("找不到此紀錄")
             else:
                 row = selected.iloc[0]
-                date_new  = st.date_input('日期', value=row['日期'].date(), key='edit_s_date')
-                qty_new   = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_s_qty')
+                date_new = st.date_input('日期', value=row['日期'].date(), key='edit_s_date')
+                qty_new = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_s_qty')
                 price_new = st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_s_price')
                 if st.button('更新銷售紀錄', key='edit_s_save'):
                     total = qty_new * price_new
@@ -425,6 +427,12 @@ elif menu == '銷售':
                     )
                     conn.commit()
                     st.success('銷售紀錄更新成功')
+                # 刪除功能
+                del_confirm = st.checkbox(f'確認刪除銷售紀錄ID {rid}?')
+                if st.button('刪除銷售紀錄', key='del_s') and del_confirm:
+                    刪除('銷售', '紀錄ID', rid)
+                    st.success(f'已刪除銷售紀錄ID {rid}')
+                    st.experimental_rerun()
 
 
 elif menu == '儀表板':
