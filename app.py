@@ -497,3 +497,49 @@ elif menu == '銷售':
             if confirm_all_s and st.button('刪除所有銷售', key='del_all_s'):
                 c.execute('DELETE FROM 銷售'); conn.commit()
                 st.success('已刪除所有銷售紀錄'); st.experimental_rerun()
+
+elif menu == '儀表板':
+    st.header('📊 庫存儀表板')
+
+    df_p  = pd.read_sql('SELECT * FROM 進貨', conn)
+    df_s  = pd.read_sql('SELECT * FROM 銷售', conn)
+    df_c  = 查詢('類別')
+    df_i  = 查詢('品項')
+    df_su = 查詢('細項')
+
+    gp = (df_p.merge(df_c, on='類別編號')
+           .merge(df_i, on='品項編號')
+           .merge(df_su, on='細項編號')
+           .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
+           .agg(進貨=('數量','sum'), 支出=('總價','sum')))
+
+    gs = (df_s.merge(df_c, on='類別編號')
+           .merge(df_i, on='品項編號')
+           .merge(df_su, on='細項編號')
+           .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
+           .agg(銷售=('數量','sum'), 收入=('總價','sum')))
+
+    summary = pd.merge(gp, gs,
+                       on=['類別名稱','品項名稱','細項名稱'],
+                       how='outer').fillna(0)
+    summary['庫存'] = summary['進貨'] - summary['銷售']
+
+    threshold = st.number_input('低庫存警戒量', min_value=0, value=5)
+    low_stock = summary[summary['庫存'] < threshold]
+    if not low_stock.empty:
+        st.warning('以下品項庫存低於警戒量')
+        st.table(low_stock)
+
+    st.dataframe(summary)
+    st.download_button(
+        '下載庫存摘要 CSV',
+        summary.to_csv(index=False, encoding='utf-8-sig'),
+        'summary.csv','text/csv'
+    )
+
+    total_spent = gp['支出'].sum()
+    total_rev   = gs['收入'].sum()
+    st.metric('總支出', f"{total_spent:.2f}")
+    st.metric('總收入', f"{total_rev:.2f}")
+    st.metric('淨利',   f"{total_rev - total_spent:.2f}")
+
