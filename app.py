@@ -94,7 +94,7 @@ def 批次匯入主檔(df: pd.DataFrame):
             新增('細項',['品項編號','細項名稱'],[iid,sub])
 
 # 批次匯入進貨/銷售（同先前）…
-st.sidebar.title('庫存管理系統')
+st.sidebar.title('Tru-Mi輕珠寶設計庫存管理系統')
 menu = st.sidebar.radio('功能選單', [
     '類別管理','品項管理','細項管理','進貨','銷售','儀表板'
 ])
