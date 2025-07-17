@@ -175,7 +175,7 @@ links = {
     "專屬訂製":      f"{site_base}/%E5%B0%88%E5%B1%AC%E8%A8%82%E8%A3%BD",
     "首飾保養":      f"{site_base}/%E9%A6%96%E9%A3%BA%E4%BF%9D%E9%A4%8A",
     "訂購提醒":      f"{site_base}/%E8%A8%82%E8%B3%BC%E6%8F%90%E9%86%92",
-    "LINE線上客服": f"{site_base}/LINE%E7%B7%9A%E4%B8%8A%E5%AE%A2%E6%9C%8D",
+    "LINE線上客服": f"{site_base}/line線上客服",
 }
 
 for name, url in links.items():
