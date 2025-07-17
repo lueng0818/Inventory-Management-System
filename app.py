@@ -376,13 +376,13 @@ elif menu == '儀表板':
 
     gp = (df_p.merge(df_c, on='類別編號')
                .merge(df_i, on='品項編號')
-               .merge(df_su,on='細項編號')
+               .merge(df_su, on='細項編號')
                .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
                .agg(進貨=('數量','sum'),支出=('總價','sum')))
 
     gs = (df_s.merge(df_c, on='類別編號')
                .merge(df_i, on='品項編號')
-               .merge(df_su,on='細項編號')
+               .merge(df_su, on='細項編號')
                .groupby(['類別名稱','品項名稱','細項名稱'], as_index=False)
                .agg(銷售=('數量','sum'),收入=('總價','sum')))
 
@@ -397,6 +397,8 @@ elif menu == '儀表板':
         summary.to_csv(index=False,encoding='utf-8-sig'),
         'summary.csv','text/csv'
     )
-    st.metric('總支出', f\"{gp['支出'].sum():.2f}\")
-    st.metric('總收入', f\"{gs['收入'].sum():.2f}\")
-    st.metric('淨利',   f\"{gs['收入'].sum()-gp['支出'].sum():.2f}\")
+    # 正確的 f-string 語法
+    st.metric('總支出', f"{gp['支出'].sum():.2f}")
+    st.metric('總收入', f"{gs['收入'].sum():.2f}")
+    st.metric('淨利',   f"{gs['收入'].sum() - gp['支出'].sum():.2f}")
+
