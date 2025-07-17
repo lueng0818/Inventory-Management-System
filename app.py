@@ -164,6 +164,7 @@ def 批次匯入銷售(df: pd.DataFrame) -> int:
         cnt += 1
     return cnt
 
+# --- 側邊欄：官網連結 + 系統選單 ---
 site_base = "https://sites.google.com/view/trumi-jewelry"
 sections = {
     "首頁":          f"{site_base}/home",
@@ -177,7 +178,9 @@ sections = {
     "LINE線上客服": f"{site_base}/LINE%E7%B7%9A%E4%B8%8A%E5%AE%A2%E6%9C%8D",
     "庫存系統":      None
 }
-section = st.sidebar.selectbox("瀏覽 Tru-Mi 官網內容", list(sections.keys()))
+
+# 把 selectbox 換成 radio，直接在側邊列出所有選項
+section = st.sidebar.radio("瀏覽 Tru-Mi 官網內容", list(sections.keys()))
 url = sections[section]
 if section != "庫存系統":
     if url:
@@ -186,9 +189,11 @@ if section != "庫存系統":
         st.sidebar.warning("此功能即將上線")
     st.stop()
 
+# 接著才是系統功能選單
 menu = st.sidebar.radio("系統功能", [
     '類別管理','品項管理','細項管理','進貨','銷售','儀表板'
 ])
+
 
 if menu == '類別管理':
     st.header('⚙️ 類別管理')
