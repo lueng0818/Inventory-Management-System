@@ -78,13 +78,6 @@ for tbl in ['進貨','銷售']:
     """)
 conn.commit()
 
-# 預設熱銷四大類（僅首次執行）
-if pd.read_sql("SELECT * FROM 類別", conn).empty:
-    for cat in ["項鍊","耳環","戒指","手鍊"]:
-        try: c.execute("INSERT INTO 類別 (類別名稱) VALUES (?)", (cat,))
-        except sqlite3.IntegrityError: pass
-    conn.commit()
-
 # --- 共用函式 ---
 def 查詢(table: str) -> pd.DataFrame:
     return pd.read_sql(f"SELECT * FROM {table}", conn)
@@ -456,7 +449,82 @@ elif menu == '銷售':
     st.header('➕ 銷售管理')
     tab1, tab2, tab3, tab4 = st.tabs(['批次匯入','查詢/匯出','手動記錄','編輯/刪除'])
 
-    # 批次匯入、查詢/匯出、手動記錄 同進貨，略…
+    # — 批次匯入 —
+    with tab1:
+        sample_s = pd.DataFrame({
+            '類別': ['示例A'],
+            '品項': ['示例X'],
+            '細項': ['示例α'],
+            '賣出數量': [5],
+            '賣出單價': [150.0],
+            '日期': [date.today().strftime('%Y-%m-%d')]
+        })
+        st.download_button(
+            '下載銷售批次範例',
+            sample_s.to_csv(index=False, encoding='utf-8-sig'),
+            'sales_template.csv', 'text/csv'
+        )
+        up_s = st.file_uploader('上傳 CSV/Excel', type=['csv','xlsx','xls'], key='up_s')
+        if up_s:
+            try:
+                df_s = pd.read_excel(up_s)
+            except:
+                df_s = pd.read_csv(up_s)
+            cnt_s = 批次匯入銷售(df_s)
+            st.success(f'批次匯入 {cnt_s} 筆銷售紀錄')
+
+    # — 查詢 / 匯出 —
+    with tab2:
+        df_s_all = 查詢('銷售')
+        d1_s = st.date_input('起始日期', date.today().replace(day=1), key='s_start')
+        d2_s = st.date_input('結束日期', date.today(), key='s_end')
+        df_s_all['日期'] = pd.to_datetime(df_s_all['日期'], errors='coerce')
+        df_s_f = df_s_all[(df_s_all['日期'] >= pd.to_datetime(d1_s)) & (df_s_all['日期'] <= pd.to_datetime(d2_s))]
+        st.dataframe(df_s_f)
+        st.download_button(
+            '匯出銷售 CSV',
+            df_s_f.to_csv(index=False, encoding='utf-8-sig'),
+            'sales_filtered.csv', 'text/csv'
+        )
+
+    # — 手動記錄 —
+    with tab3:
+        cat_map = 取得對映('類別')
+        if not cat_map:
+            st.warning('請先新增類別')
+        else:
+            sel_cat_s = st.selectbox('類別', list(cat_map.keys()), key='s_cat')
+            cid_s = cat_map[sel_cat_s]
+            items_s = pd.read_sql('SELECT 品項編號,品項名稱 FROM 品項 WHERE 類別編號=?',
+                                  conn, params=(cid_s,))
+            imap_s = dict(zip(items_s['品項名稱'], items_s['品項編號']))
+            if not imap_s:
+                st.warning('該類別無品項')
+            else:
+                sel_item_s = st.selectbox('品項', list(imap_s.keys()), key='s_item')
+                iid_s = imap_s[sel_item_s]
+                subs_s = pd.read_sql('SELECT 細項編號,細項名稱 FROM 細項 WHERE 品項編號=?',
+                                     conn, params=(iid_s,))
+                smap_s = dict(zip(subs_s['細項名稱'], subs_s['細項編號']))
+                if not smap_s:
+                    st.warning('該品項無細項')
+                else:
+                    sel_sub_s = st.selectbox('細項', list(smap_s.keys()), key='s_sub')
+                    sid_s = smap_s[sel_sub_s]
+                    use_today_s = st.checkbox('自動帶入今日日期', value=True, key='s_today')
+                    date_str_s = (
+                        datetime.now().strftime('%Y-%m-%d')
+                        if use_today_s
+                        else st.date_input('選擇日期', key='s_date').strftime('%Y-%m-%d')
+                    )
+                    qty_s = st.number_input('數量', min_value=1, value=1, key='s_qty')
+                    price_s = st.number_input('單價', min_value=0.0, format='%.2f', key='s_price')
+                    if st.button('儲存銷售', key='s_save'):
+                        新增('銷售',
+                             ['類別編號','品項編號','細項編號','數量','單價','日期'],
+                             [cid_s, iid_s, sid_s, qty_s, price_s, date_str_s]
+                        )
+                        st.success(f'銷售記錄已儲存：{date_str_s}')
 
     # 編輯 / 刪除
     with tab4:
