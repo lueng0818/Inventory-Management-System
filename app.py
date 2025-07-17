@@ -6,28 +6,31 @@ from datetime import datetime, date
 # --- 資料庫初始化 ---
 conn = sqlite3.connect('database.db', check_same_thread=False)
 c = conn.cursor()
-c.execute("""
-CREATE TABLE IF NOT EXISTS 類別 (
-    類別編號 INTEGER PRIMARY KEY AUTOINCREMENT,
-    類別名稱 TEXT UNIQUE
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS 品項 (
-    品項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
-    類別編號 INTEGER,
-    品項名稱 TEXT,
-    FOREIGN KEY(類別編號) REFERENCES 類別(類別編號)
-)
-""")
-c.execute("""
-CREATE TABLE IF NOT EXISTS 細項 (
-    細項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
-    品項編號 INTEGER,
-    細項名稱 TEXT,
-    FOREIGN KEY(品項編號) REFERENCES 品項(品項編號)
-)
-""")
+for sql in [
+    """
+    CREATE TABLE IF NOT EXISTS 類別 (
+        類別編號 INTEGER PRIMARY KEY AUTOINCREMENT,
+        類別名稱 TEXT UNIQUE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS 品項 (
+        品項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
+        類別編號 INTEGER,
+        品項名稱 TEXT,
+        FOREIGN KEY(類別編號) REFERENCES 類別(類別編號)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS 細項 (
+        細項編號 INTEGER PRIMARY KEY AUTOINCREMENT,
+        品項編號 INTEGER,
+        細項名稱 TEXT,
+        FOREIGN KEY(品項編號) REFERENCES 品項(品項編號)
+    )
+    """
+]:
+    c.execute(sql)
 for tbl in ['進貨','銷售']:
     c.execute(f"""
     CREATE TABLE IF NOT EXISTS {tbl} (
@@ -46,6 +49,7 @@ for tbl in ['進貨','銷售']:
     """)
 conn.commit()
 
+# --- 輔助函式 ---
 def 查詢(table: str) -> pd.DataFrame:
     return pd.read_sql(f"SELECT * FROM {table}", conn)
 
@@ -65,14 +69,26 @@ def 刪除(table: str, key_col: str, key_val):
     conn.commit()
 
 def 取得對映(table: str) -> dict:
-    mapping = {
-        '類別': ('類別名稱','類別編號'),
-        '品項': ('品項名稱','品項編號'),
-        '細項': ('細項名稱','細項編號'),
-    }
+    mapping = {'類別':('類別名稱','類別編號'),'品項':('品項名稱','品項編號'),'細項':('細項名稱','細項編號')}
     name_col, id_col = mapping.get(table, (None,None))
+    if not name_col: return {}
     rows = conn.execute(f"SELECT {name_col},{id_col} FROM {table}").fetchall()
     return {name:idx for name,idx in rows}
+
+# 批次匯入功能
+def 批次匯入主檔(df: pd.DataFrame):
+    df = df.rename(columns=str.strip)
+    for _, r in df.iterrows():
+        cat = r.get('類別')
+        if pd.notna(cat): 新增('類別',['類別名稱'],[cat])
+        item = r.get('品項')
+        if pd.notna(item):
+            cid = 取得對映('類別')[r['類別']]
+            新增('品項',['類別編號','品項名稱'],[cid,item])
+        sub = r.get('細項')
+        if pd.notna(sub):
+            iid = 取得對映('品項')[r['品項']]
+            新增('細項',['品項編號','細項名稱'],[iid,sub])
 
 # 批次匯入進貨
 def 批次匯入進貨(df: pd.DataFrame) -> int:
