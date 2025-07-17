@@ -300,9 +300,8 @@ elif menu == '進貨':
                         新增('進貨',['類別編號','品項編號','細項編號','數量','單價','日期'],
                              [cid,iid,sid,qty,price,date_str])
                         st.success(f'進貨記錄已儲存：{date_str}')
-    # === 編輯紀錄 ===
+   # === 編輯 & 刪除 ===
     with tab4:
-        # 取出並 JOIN 主檔名稱方便顯示
         sql_p = '''
         SELECT P.紀錄ID, C.類別名稱, I.品項名稱, S.細項名稱,
                P.數量, P.單價, P.總價, P.日期
@@ -316,31 +315,44 @@ elif menu == '進貨':
             st.warning('目前無進貨紀錄')
         else:
             st.dataframe(dfp)
-            # 建立描述→ID 對映
-            desc_map = {f"{r['紀錄ID']}: {r['類別名稱']}/{r['品項名稱']}/{r['細項名稱']}": r['紀錄ID'] for _,r in dfp.iterrows()}
-            sel = st.selectbox('選擇進貨記錄', list(desc_map.keys()), key='edit_p_sel')
+            # 準備描述→ID 對映
+            desc_map = {
+                f"{r['紀錄ID']}: {r['類別名稱']}/{r['品項名稱']}/{r['細項名稱']}":
+                r['紀錄ID']
+                for _, r in dfp.iterrows()
+            }
+            # 單筆更新
+            sel = st.selectbox('選擇進貨紀錄', list(desc_map.keys()), key='edit_p_sel')
             rid = desc_map[sel]
-            row = dfp[dfp['紀錄ID']==rid].iloc[0]
-            # 編輯欄位
+            row = dfp[dfp['紀錄ID'] == rid].iloc[0]
             date_new = st.date_input('日期', value=pd.to_datetime(row['日期']).date(), key='edit_p_date')
-            qty_new = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_p_qty')
-            price_new = st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_p_price')
+            qty_new  = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_p_qty')
+            price_new= st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_p_price')
             if st.button('更新進貨', key='edit_p_save'):
                 total = qty_new * price_new
                 c.execute(
-                    'UPDATE 進貨 SET 數量=?,單價=?,總價=?,日期=? WHERE 紀錄ID=?',
+                    'UPDATE 進貨 SET 數量=?, 單價=?, 總價=?, 日期=? WHERE 紀錄ID=?',
                     (qty_new, price_new, total, date_new.strftime('%Y-%m-%d'), rid)
                 )
                 conn.commit()
                 st.success('進貨記錄更新成功')
+
             # 批次刪除
             to_del = st.multiselect('批次刪除進貨', list(desc_map.keys()), key='batch_p')
-            confirm = st.checkbox('確認要刪除以上所有進貨紀錄嗎？', key='batch_p_confirm')
-            if to_del and confirm and st.button('執行刪除進貨', key='del_p_batch'):
+            confirm = st.checkbox('確認刪除以上所選進貨紀錄？', key='batch_p_confirm')
+            if to_del and confirm and st.button('刪除所選進貨', key='del_p_batch'):
                 for d in to_del:
                     c.execute('DELETE FROM 進貨 WHERE 紀錄ID=?', (desc_map[d],))
                 conn.commit()
-                st.success(f'刪除 {len(to_del)} 筆進貨')
+                st.success(f'已刪除 {len(to_del)} 筆進貨')
+                st.experimental_rerun()
+
+            # 刪除所有
+            confirm_all = st.checkbox('確認刪除所有進貨紀錄？', key='del_all_p_confirm')
+            if confirm_all and st.button('刪除所有進貨', key='del_all_p'):
+                c.execute('DELETE FROM 進貨')
+                conn.commit()
+                st.success('已刪除所有進貨紀錄')
                 st.experimental_rerun()
 
             
@@ -411,38 +423,58 @@ elif menu == '銷售':
                              [cid,iid,sid,qty,price,date_str])
                         st.success(f'銷售記錄已儲存：{date_str}')
                         
-    # === 編輯紀錄 ===
+# === 編輯 & 刪除 ===
     with tab4:
-        df = 查詢('銷售')
-        if df.empty:
-            st.warning("目前無銷售紀錄")
+        sql_s = '''
+        SELECT P.紀錄ID, C.類別名稱, I.品項名稱, S.細項名稱,
+               P.數量, P.單價, P.總價, P.日期
+        FROM 銷售 P
+        JOIN 類別 C ON P.類別編號=C.類別編號
+        JOIN 品項 I ON P.品項編號=I.品項編號
+        JOIN 細項 S ON P.細項編號=S.細項編號
+        '''
+        dfs = pd.read_sql(sql_s, conn)
+        if dfs.empty:
+            st.warning('目前無銷售紀錄')
         else:
-            df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
-            st.dataframe(df)
-            rid_list = df['紀錄ID'].tolist()
-            rid = st.selectbox('選擇紀錄ID', rid_list, key='edit_s_id')
-            selected = df[df['紀錄ID'] == rid]
-            if selected.empty:
-                st.warning("找不到此紀錄")
-            else:
-                row = selected.iloc[0]
-                date_new = st.date_input('日期', value=row['日期'].date(), key='edit_s_date')
-                qty_new = st.number_input('數量', min_value=1, value=int(row['數量']), key='edit_s_qty')
-                price_new = st.number_input('單價', min_value=0.0, format='%.2f', value=float(row['單價']), key='edit_s_price')
-                if st.button('更新銷售紀錄', key='edit_s_save'):
-                    total = qty_new * price_new
-                    c.execute(
-                        'UPDATE 銷售 SET 數量=?, 單價=?, 總價=?, 日期=? WHERE 紀錄ID=?',
-                        (qty_new, price_new, total, date_new.strftime('%Y-%m-%d'), rid)
-                    )
-                    conn.commit()
-                    st.success('銷售紀錄更新成功')
-                # 刪除功能
-                del_confirm = st.checkbox(f'確認刪除銷售紀錄ID {rid}?')
-                if st.button('刪除銷售紀錄', key='del_s') and del_confirm:
-                    刪除('銷售', '紀錄ID', rid)
-                    st.success(f'已刪除銷售紀錄ID {rid}')
-                    st.experimental_rerun()
+            st.dataframe(dfs)
+            desc_map_s = {
+                f"{r['紀錄ID']}: {r['類別名稱']}/{r['品項名稱']}/{r['細項名稱']}":
+                r['紀錄ID']
+                for _, r in dfs.iterrows()
+            }
+            sel_s = st.selectbox('選擇銷售紀錄', list(desc_map_s.keys()), key='edit_s_sel')
+            rid_s = desc_map_s[sel_s]
+            row_s = dfs[dfs['紀錄ID'] == rid_s].iloc[0]
+            date_new_s = st.date_input('日期', value=pd.to_datetime(row_s['日期']).date(), key='edit_s_date')
+            qty_new_s  = st.number_input('數量', min_value=1,  value=int(row_s['數量']), key='edit_s_qty')
+            price_new_s= st.number_input('單價', min_value=0.0, format='%.2f', value=float(row_s['單價']), key='edit_s_price')
+            if st.button('更新銷售', key='edit_s_save'):
+                total_s = qty_new_s * price_new_s
+                c.execute(
+                    'UPDATE 銷售 SET 數量=?, 單價=?, 總價=?, 日期=? WHERE 紀錄ID=?',
+                    (qty_new_s, price_new_s, total_s, date_new_s.strftime('%Y-%m-%d'), rid_s)
+                )
+                conn.commit()
+                st.success('銷售記錄更新成功')
+
+            # 批次刪除
+            to_del_s = st.multiselect('批次刪除銷售', list(desc_map_s.keys()), key='batch_s')
+            confirm_s= st.checkbox('確認刪除以上所選銷售紀錄？', key='batch_s_confirm')
+            if to_del_s and confirm_s and st.button('刪除所選銷售', key='del_s_batch'):
+                for d in to_del_s:
+                    c.execute('DELETE FROM 銷售 WHERE 紀錄ID=?', (desc_map_s[d],))
+                conn.commit()
+                st.success(f'已刪除 {len(to_del_s)} 筆銷售')
+                st.experimental_rerun()
+
+            # 刪除所有
+            confirm_all_s = st.checkbox('確認刪除所有銷售紀錄？', key='del_all_s_confirm')
+            if confirm_all_s and st.button('刪除所有銷售', key='del_all_s'):
+                c.execute('DELETE FROM 鷷取' if False else '銷售')
+                conn.commit()
+                st.success('已刪除所有銷售紀錄')
+                st.experimental_rerun()
 
 
 elif menu == '儀表板':
