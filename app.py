@@ -164,34 +164,7 @@ def 批次匯入銷售(df: pd.DataFrame) -> int:
         cnt += 1
     return cnt
 
-# --- 側邊欄：官網連結 + 系統選單 ---
-site_base = "https://sites.google.com/view/trumi-jewelry"
-links = {
-    "首頁":          f"{site_base}/首頁",
-    "熱銷推薦":      f"{site_base}/%E7%86%B1%E9%8A%B7%E6%8E%A8%E8%96%A6",
-    "主題系列":      f"{site_base}/%E4%B8%BB%E9%A1%8C%E7%B3%BB%E5%88%97",
-    "婚戒物語":      f"{site_base}/%E5%A9%9A%E6%88%92%E7%89%A9%E8%AA%9E",
-    "寶寶禮物":      f"{site_base}/%E5%AF%B6%E5%AF%B6%E7%A6%AE%E7%89%A9",
-    "專屬訂製":      f"{site_base}/%E5%B0%88%E5%B1%AC%E8%A8%82%E8%A3%BD",
-    "首飾保養":      f"{site_base}/%E9%A6%96%E9%A3%BA%E4%BF%9D%E9%A4%8A",
-    "訂購提醒":      f"{site_base}/%E8%A8%82%E8%B3%BC%E6%8F%90%E9%86%92",
-    "LINE線上客服": f"{site_base}/line線上客服",
-}
-
-for name, url in links.items():
-    st.sidebar.markdown(
-        f'<a href="{url}" target="_blank" style="text-decoration:none; color:#000;">• {name}</a>',
-        unsafe_allow_html=True
-    )
-
-# 分隔線
-st.sidebar.markdown("---")
-
-# 再提供「進入庫存系統」按鈕，點擊後才顯示管理介面
-if not st.sidebar.button("🔧 進入庫存系統"):
-    st.stop()
-
-# 接著才是系統功能選單
+# --- 側邊欄：系統功能選單（僅保留庫存系統） ---
 menu = st.sidebar.radio("系統功能", [
     '類別管理','品項管理','細項管理','進貨','銷售','儀表板'
 ])
